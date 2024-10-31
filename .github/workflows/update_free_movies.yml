@@ -65,10 +65,13 @@ jobs:
 
       - name: Append Unique Movies to Previously Used Movies List
         run: |
+          # Extract all tmdb_id values from previously_used_movies.csv to avoid duplicate entries
+          used_tmdb_ids=$(csvcut -c tmdb_id movies/previously_used_movies.csv | tail -n +2)
+
           # Ensure daily_discovery.csv is properly formatted before appending
           csvformat -U 1 -T movies/daily_discovery.csv | tail -n +2 | while IFS=, read -r title year imdb_id tmdb_id released url; do
             # Check if the tmdb_id already exists in previously_used_movies.csv to prevent duplicates
-            if ! grep -q "$tmdb_id" movies/previously_used_movies.csv; then
+            if ! echo "$used_tmdb_ids" | grep -q "$tmdb_id"; then
               # Append the formatted line directly to previously_used_movies.csv
               echo "\"$title\",\"$year\",\"$imdb_id\",\"$tmdb_id\",\"$released\",\"$url\"" >> movies/previously_used_movies.csv
             fi
