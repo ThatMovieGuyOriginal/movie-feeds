@@ -51,6 +51,7 @@ jobs:
             echo "Error: Less than two unique movies available for selection. Skipping this run."
             exit 1
           else
+            echo "Selected movies for daily discovery:"
             # Format each selected movie with quotes around each field before appending
             while IFS= read -r line; do
               title=$(echo "$line" | cut -d',' -f1)
@@ -59,13 +60,16 @@ jobs:
               tmdb_id=$(echo "$line" | cut -d',' -f4)
               released=$(echo "$line" | cut -d',' -f5)
               url=$(echo "$line" | cut -d',' -f6)
-              echo "\"$title\",\"$year\",\"$imdb_id\",\"$tmdb_id\",\"$released\",\"$url\"" >> movies/daily_discovery.csv
+              formatted_line="\"$title\",\"$year\",\"$imdb_id\",\"$tmdb_id\",\"$released\",\"$url\""
+              echo "$formatted_line" >> movies/daily_discovery.csv
+              echo "  - $title"  # Log each movie title being added to daily_discovery.csv
             done <<< "$selected_movies"
           fi
 
       - name: Append Unique Movies to Previously Used Movies List
         run: |
           # Append only unique entries from daily_discovery.csv to previously_used_movies.csv
+          echo "Appending movies to previously_used_movies.csv:"
           while IFS=, read -r title year imdb_id tmdb_id released url; do
             # Format the line with each field enclosed in double quotes
             formatted_line="\"$title\",\"$year\",\"$imdb_id\",\"$tmdb_id\",\"$released\",\"$url\""
@@ -73,6 +77,7 @@ jobs:
             # Check if the tmdb_id already exists in previously_used_movies.csv to prevent duplicates
             if ! grep -q "$tmdb_id" movies/previously_used_movies.csv; then
               echo "$formatted_line" >> movies/previously_used_movies.csv
+              echo "  - $title"  # Log each movie title being appended to previously_used_movies.csv
             fi
           done < <(tail -n +2 movies/daily_discovery.csv)
 
