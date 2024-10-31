@@ -1,0 +1,71 @@
+name: Update Daily Discovery List
+
+on:
+  schedule:
+    - cron: '0 */12 * * *' # Runs every 12 hours
+  workflow_dispatch: # Enables manual runs
+  
+jobs:
+  update-daily-discovery:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false  # Disable default token to use PAT explicitly
+
+      - name: Install dependencies
+        run: sudo apt-get install -y csvkit
+
+      - name: Prepare Used Movies List
+        run: |
+          # If previously_used_movies.csv does not exist, create it with headers
+          if [ ! -f movies/previously_used_movies.csv ]; then
+            echo "title,year,imdb_id,tmdb_id,released,url" > movies/previously_used_movies.csv
+          fi
+
+      - name: Check if All Movies Have Been Used
+        run: |
+          # Count lines in master and previously used lists
+          master_count=$(tail -n +2 movies/master_movie_list.csv | wc -l)
+          used_count=$(tail -n +2 movies/previously_used_movies.csv | wc -l)
+          # If all movies have been used, reset previously_used_movies.csv
+          if [ "$master_count" -eq "$used_count" ]; then
+            echo "Resetting previously used movies list as all movies have been used."
+            echo "title,year,imdb_id,tmdb_id,released,url" > movies/previously_used_movies.csv
+          fi
+
+      - name: Select Random Movie Excluding Previously Used Movies
+        run: |
+          # Clear daily_discovery.csv and add headers
+          echo "title,year,imdb_id,tmdb_id,released,url" > movies/daily_discovery.csv
+          
+          # Select two random movies from master_movie_list.csv excluding previously_used_movies.csv
+          csvcut -c title,year,imdb_id,tmdb_id,released,url movies/master_movie_list.csv | \
+          csvgrep -i -c tmdb_id -f movies/previously_used_movies.csv | \
+          shuf -n 2 >> movies/daily_discovery.csv
+
+      - name: Append Unique Movies to Previously Used Movies List
+        run: |
+          # Append only unique entries from daily_discovery.csv to previously_used_movies.csv
+          while IFS=, read -r title year imdb_id tmdb_id released url; do
+            # Format the line with each field enclosed in double quotes
+            formatted_line="\"$title\",\"$year\",\"$imdb_id\",\"$tmdb_id\",\"$released\",\"$url\""
+            
+            # Check if the tmdb_id already exists in previously_used_movies.csv to prevent duplicates
+            if ! grep -q "$tmdb_id" movies/previously_used_movies.csv; then
+              echo "$formatted_line" >> movies/previously_used_movies.csv
+            fi
+          done < <(tail -n +2 movies/daily_discovery.csv)
+
+      - name: Commit and push changes
+        env:
+          DAILY_DISCOVERY_PAT: ${{ secrets.DAILY_DISCOVERY_PAT }}
+        run: |
+          git config --local user.email "you@example.com"
+          git config --local user.name "GitHub Actions"
+          git remote set-url origin https://$DAILY_DISCOVERY_PAT@github.com/ThatMovieGuyOriginal/movie-feeds.git
+          git add movies/daily_discovery.csv movies/previously_used_movies.csv
+          git commit -m "Update free movies for RSS feed and log used movie"
+          git push origin main
