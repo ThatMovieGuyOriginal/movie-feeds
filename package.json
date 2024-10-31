@@ -1,0 +1,8 @@
+{
+  "name": "movie-feeds",
+  "version": "1.0.0",
+  "main": "api/feed.js",
+  "dependencies": {
+    "csv-parser": "^3.0.0"
+  }
+}
