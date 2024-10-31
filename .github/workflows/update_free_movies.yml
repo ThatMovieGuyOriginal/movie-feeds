@@ -42,9 +42,17 @@ jobs:
           echo "title,year,imdb_id,tmdb_id,released,url" > movies/daily_discovery.csv
           
           # Select two random movies from master_movie_list.csv excluding previously_used_movies.csv
-          csvcut -c title,year,imdb_id,tmdb_id,released,url movies/master_movie_list.csv | \
-          csvgrep -i -c tmdb_id -f movies/previously_used_movies.csv | \
-          shuf -n 2 >> movies/daily_discovery.csv
+          selected_movies=$(csvcut -c title,year,imdb_id,tmdb_id,released,url movies/master_movie_list.csv | \
+            csvgrep -i -c tmdb_id -f movies/previously_used_movies.csv | \
+            shuf -n 2)
+
+          # Check if exactly two movies were selected
+          if [ $(echo "$selected_movies" | wc -l) -ne 2 ]; then
+            echo "Error: Less than two unique movies available for selection. Skipping this run."
+            exit 1
+          else
+            echo "$selected_movies" >> movies/daily_discovery.csv
+          fi
 
       - name: Append Unique Movies to Previously Used Movies List
         run: |
