@@ -51,7 +51,16 @@ jobs:
             echo "Error: Less than two unique movies available for selection. Skipping this run."
             exit 1
           else
-            echo "$selected_movies" >> movies/daily_discovery.csv
+            # Format each selected movie with quotes around each field before appending
+            while IFS= read -r line; do
+              title=$(echo "$line" | cut -d',' -f1)
+              year=$(echo "$line" | cut -d',' -f2)
+              imdb_id=$(echo "$line" | cut -d',' -f3)
+              tmdb_id=$(echo "$line" | cut -d',' -f4)
+              released=$(echo "$line" | cut -d',' -f5)
+              url=$(echo "$line" | cut -d',' -f6)
+              echo "\"$title\",\"$year\",\"$imdb_id\",\"$tmdb_id\",\"$released\",\"$url\"" >> movies/daily_discovery.csv
+            done <<< "$selected_movies"
           fi
 
       - name: Append Unique Movies to Previously Used Movies List
