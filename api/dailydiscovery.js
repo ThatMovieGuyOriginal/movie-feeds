@@ -73,4 +73,13 @@ module.exports = async (req, res) => {
         } else {
           res.status(500).send("Error generating RSS feed: No movies found");
         }
-        
+      })
+      .on('error', (err) => {
+        console.error("Error reading CSV file:", err);
+        res.status(500).send("Error reading CSV file");
+      });
+  } catch (err) {
+    console.error("Server error:", err);
+    res.status(500).send("Server error");
+  }
+};
