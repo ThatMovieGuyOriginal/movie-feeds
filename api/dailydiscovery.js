@@ -32,19 +32,18 @@ module.exports = async (req, res) => {
     res.setHeader('Pragma', 'no-cache');
 
     const movies = [];
-    // Read file asynchronously
-    const csvData = await fs.promises.readFile(csvFilePath, 'utf8');
-    
-    csvData.split('\n').slice(1).forEach((line) => {
-      const row = line.split(','); // Adjust according to CSV structure
-      if (row[0] && row[3]) { // Check essential fields exist
-        movies.push({
-          title: row[0],
-          year: row[1] || "Unknown Year",
-          imdb_id: row[2],
-          tmdb_id: row[3],
-          released: row[4] || "Release date unknown",
-          url: row[5]
+    fs.createReadStream(${csvFilePath}?t=${fileTimestamp}) // Adds timestamp parameter
+      .pipe(csvParser())
+      .on('data', (row) => {
+        // Validate and push each row into movies array if it has essential fields
+        if (row.title && row.tmdb_id) {
+          movies.push({
+            title: row.title,
+            year: row.year || "Unknown Year", // Fallback for missing year
+            imdb_id: row.imdb_id,
+            tmdb_id: row.tmdb_id,
+            released: row.released || new Date().toISOString(), // Default to current date if missing
+            url: row.url
         });
       }
     });
@@ -54,7 +53,7 @@ module.exports = async (req, res) => {
         `<?xml version="1.0" encoding="UTF-8"?>`,
         `<rss version="2.0">`,
         `  <channel>`,
-        `    <title>Daily Movie Discovery</title>`,
+        `    <title>Daily Discovery</title>`,
         `    <description>Daily movie recommendations, streamlined for Radarr. No contracts. No costs. Ever.</description>`
       ];
 
@@ -77,11 +76,11 @@ module.exports = async (req, res) => {
         `<?xml version="1.0" encoding="UTF-8"?>`,
         `<rss version="2.0">`,
         `  <channel>`,
-        `    <title>Daily Movie Discovery</title>`,
+        `    <title>Daily Discovery</title>`,
         `    <description>Daily movie recommendations, streamlined for Radarr. No contracts. No costs. Ever.</description>`,
         `    <item>`,
         `      <title>No Movies Available</title>`,
-        `      <description>No movies available for today. Please check back later!</description>`,
+        `      <description>We're having some technical difficulties, but working hard to get it resolved. Please check back later!</description>`,
         `    </item>`,
         `  </channel>`,
         `</rss>`
