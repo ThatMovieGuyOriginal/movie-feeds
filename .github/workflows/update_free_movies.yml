@@ -41,11 +41,11 @@ jobs:
           # Clear daily_discovery.csv and add headers
           echo "title,year,imdb_id,tmdb_id,released,url" > movies/daily_discovery.csv
           
-          # Concatenate all master movie lists and filter out previously used movies
+          # Concatenate all master movie lists, select only required columns, skip headers, and filter out previously used movies
           selected_movies=$(cat movies/master_movie_list_*.csv | \
             tail -n +2 | \
-            csvcut -c title,year,imdb_id,tmdb_id,released,url | \
-            csvgrep -i -c tmdb_id -f movies/previously_used_movies.csv | \
+            csvcut -c 1,3,6,8,12,20 | \   # Select only relevant columns by position
+            csvgrep -i -c 3 -f movies/previously_used_movies.csv | \   # Filter by imdb_id column position (3rd in selected columns)
             shuf -n 5)
 
           # Log the raw selected_movies output for debugging
