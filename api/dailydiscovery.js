@@ -46,39 +46,31 @@ module.exports = async (req, res) => {
         }
       })
       .on('end', () => {
+        // Generate RSS feed if there are movies in the list
         if (movies.length > 0) {
-          let rssFeed = <?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-  <channel>
-    <title>Daily Discovery</title>
-    <description>Daily movie recommendations, streamlined for Radarr. No contracts. No costs. Ever.</description>;
-
+          let rssFeed = `<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>Daily Discovery</title>
+            <description>Daily movie recommendations, streamlined for Radarr. No contracts. No costs. Ever.</description>`;
+        
           movies.forEach(movie => {
-            rssFeed += 
-    <item>
-      <title>${escapeXml(movie.title)}</title>
-      <link>${escapeXml(movie.url || https://www.themoviedb.org/movie/${movie.tmdb_id})}</link>
-      <pubDate>${new Date(movie.released).toUTCString()}</pubDate>
-      <description>${escapeXml(Released in ${movie.year}.)}</description>
-    </item>;
+            rssFeed += `
+            <item>
+              <title>${escapeXml(movie.title)}</title>
+              <link>${escapeXml(movie.url || `https://www.themoviedb.org/movie/${movie.tmdb_id}`)}</link>
+              <pubDate>${new Date(movie.released).toUTCString()}</pubDate>
+              <description>${escapeXml(`Released in ${movie.year}.`)}</description>
+            </item>`;
           });
-
-          rssFeed += 
-  </channel>
-</rss>;
-
+        
+          rssFeed += `
+          </channel>
+        </rss>`;
+        
           res.setHeader('Content-Type', 'application/rss+xml');
           res.send(rssFeed.trim());
         } else {
           res.status(500).send("Error generating RSS feed: No movies found");
         }
-      })
-      .on('error', (err) => {
-        console.error("Error reading CSV file:", err);
-        res.status(500).send("Error reading CSV file");
-      });
-  } catch (err) {
-    console.error("Server error:", err);
-    res.status(500).send("Server error");
-  }
-};
+        
