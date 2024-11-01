@@ -2,6 +2,19 @@ const csvParser = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
 
+// Helper function to escape XML special characters
+function escapeXml(unsafe) {
+  return unsafe.replace(/[&<>"']/g, function (c) {
+    return {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&apos;'
+    }[c];
+  });
+}
+
 module.exports = async (req, res) => {
   try {
     const csvFilePath = path.join(__dirname, '../movies', 'daily_discovery.csv');
@@ -32,10 +45,10 @@ module.exports = async (req, res) => {
           movies.forEach(movie => {
             rssFeed += `
     <item>
-      <title>${movie.title}</title>
-      <link>${movie.url || `https://www.themoviedb.org/movie/${movie.tmdb_id}`}</link>
+      <title>${escapeXml(movie.title)}</title>
+      <link>${escapeXml(movie.url || `https://www.themoviedb.org/movie/${movie.tmdb_id}`)}</link>
       <pubDate>${new Date(movie.released).toUTCString()}</pubDate>
-      <description>${movie.year ? `Released in ${movie.year}.` : 'No additional details available.'}</description>
+      <description>${movie.year ? escapeXml(`Released in ${movie.year}.`) : 'No additional details available.'}</description>
     </item>`;
           });
 
@@ -44,7 +57,7 @@ module.exports = async (req, res) => {
 </rss>`;
 
           res.setHeader('Content-Type', 'application/rss+xml');
-          res.send(rssFeed.trim()); // Ensure no extra whitespace
+          res.send(rssFeed.trim());
         } else {
           res.status(500).send("Error generating RSS feed: No movies found");
         }
