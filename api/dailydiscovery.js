@@ -55,11 +55,14 @@ module.exports = async (req, res) => {
             <description>Daily movie recommendations, streamlined for Radarr. No contracts. No costs. Ever.</description>`;
         
           movies.forEach(movie => {
+            const releaseDate = new Date(movie.released);
+            const pubDate = isNaN(releaseDate.getTime()) ? "Unknown Date" : releaseDate.toUTCString();
+      
             rssFeed += `
             <item>
               <title>${escapeXml(movie.title)}</title>
               <link>${escapeXml(movie.url || `https://www.themoviedb.org/movie/${movie.tmdb_id}`)}</link>
-              <pubDate>${new Date(movie.released).toUTCString()}</pubDate>
+              <pubDate>${pubDate}</pubDate>
               <description>${escapeXml(`Released in ${movie.year}.`)}</description>
             </item>`;
           });
