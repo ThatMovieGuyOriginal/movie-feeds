@@ -33,7 +33,17 @@ module.exports = async (req, res) => {
     fs.createReadStream(`${csvFilePath}?t=${fileTimestamp}`) // Adds timestamp parameter
       .pipe(csvParser())
       .on('data', (row) => {
-        movies.push(row);
+        // Validate and push each row into movies array if it has essential fields
+        if (row.title && row.tmdb_id) {
+          movies.push({
+            title: row.title,
+            year: row.year || "Unknown Year", // Fallback for missing year
+            imdb_id: row.imdb_id,
+            tmdb_id: row.tmdb_id,
+            released: row.released || new Date().toISOString(), // Default to current date if missing
+            url: row.url
+          });
+        }
       })
       .on('end', () => {
         if (movies.length > 0) {
@@ -41,7 +51,7 @@ module.exports = async (req, res) => {
 <rss version="2.0">
   <channel>
     <title>Daily Movie Discovery</title>
-    <description>Daily movie recommendations, streamlined for Radarr. No cost. Ever.!</description>`;
+    <description>Daily movie recommendations, streamlined for Radarr. No contracts. No costs. Ever.</description>`;
 
           movies.forEach(movie => {
             rssFeed += `
@@ -49,7 +59,7 @@ module.exports = async (req, res) => {
       <title>${escapeXml(movie.title)}</title>
       <link>${escapeXml(movie.url || `https://www.themoviedb.org/movie/${movie.tmdb_id}`)}</link>
       <pubDate>${new Date(movie.released).toUTCString()}</pubDate>
-      <description>${movie.year ? escapeXml(`Released in ${movie.year}.`) : 'No additional details available.'}</description>
+      <description>${escapeXml(`Released in ${movie.year}.`)}</description>
     </item>`;
           });
 
