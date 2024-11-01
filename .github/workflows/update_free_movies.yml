@@ -51,6 +51,11 @@ jobs:
             while IFS= read -r line; do
               echo "Processing line: $line"  # Log the line being processed
 
+              filename=$(echo "$line" | cut -d',' -f1)
+              movie_data=$(echo "$line" | cut -d',' -f2-)
+
+
+
               title=$(echo "$line" | cut -d',' -f1)
               year=$(echo "$line" | cut -d',' -f2)
               imdb_id=$(echo "$line" | cut -d',' -f3)
@@ -67,6 +72,7 @@ jobs:
               url="${url:-""}"
 
               # Log each parsed field to catch any parsing issues
+              echo "  Source File: $filename"
               echo "  Title: $title"
               echo "  Year: $year"
               echo "  IMDB ID: $imdb_id"
