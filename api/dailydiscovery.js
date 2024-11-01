@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
     res.setHeader('Pragma', 'no-cache');
 
     const movies = [];
-    fs.createReadStream(${csvFilePath}?t=${fileTimestamp}) // Adds timestamp parameter
+    fs.createReadStream(`${csvFilePath}?t=${fileTimestamp}`) // Adds timestamp parameter
       .pipe(csvParser())
       .on('data', (row) => {
         // Validate and push each row into movies array if it has essential fields
