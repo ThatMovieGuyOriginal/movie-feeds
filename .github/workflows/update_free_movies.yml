@@ -41,8 +41,9 @@ jobs:
           # Clear daily_discovery.csv and add headers
           echo "title,year,imdb_id,tmdb_id,released,url" > movies/daily_discovery.csv
           
-          # Select two random movies from master_movie_list.csv excluding previously_used_movies.csv
-          selected_movies=$(csvcut -c title,year,imdb_id,tmdb_id,released,url movies/master_movie_list.csv | \
+          # Select two random movies from master_movie_list.csv excluding headers and previously_used_movies.csv
+          selected_movies=$(tail -n +2 movies/master_movie_list.csv | \
+            csvcut -c title,year,imdb_id,tmdb_id,released,url | \
             csvgrep -i -c tmdb_id -f movies/previously_used_movies.csv | \
             shuf -n 2)
 
