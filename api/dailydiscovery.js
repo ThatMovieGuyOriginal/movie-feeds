@@ -17,9 +17,7 @@ function escapeXml(unsafe) {
 
 module.exports = async (req, res) => {
   try {
-    const csvFilePath = path.resolve(__dirname, '../movies/daily_discovery.csv');
-    console.log("Resolved CSV File Path:", csvFilePath); // Log the file path for debugging
-
+    const csvFilePath = path.join(__dirname, '../movies', 'daily_discovery.csv');
     const fileTimestamp = new Date().getTime(); // Cache-busting timestamp
 
     if (!fs.existsSync(csvFilePath)) {
@@ -27,8 +25,8 @@ module.exports = async (req, res) => {
       return;
     }
 
-    // Update headers to control caching in Vercel environments
-    res.setHeader('Cache-Control', 'no-cache, max-age=0, must-revalidate');
+    // Update headers to prevent caching and force refresh in Vercel environments
+    res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
 
     const movies = [];
@@ -42,55 +40,45 @@ module.exports = async (req, res) => {
             year: row.year || "Unknown Year", // Fallback for missing year
             imdb_id: row.imdb_id,
             tmdb_id: row.tmdb_id,
-            released: row.released || new Date().toISOString(), // Default to current date if missing
+            released: row.released || "Release date unknown",
             url: row.url
-        });
-      }
-    });
+          });
+        }
+      })
+      .on('end', () => {
+        if (movies.length > 0) {
+          let rssFeed = <?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Daily Discovery</title>
+    <description>Daily movie recommendations, streamlined for Radarr. No contracts. No costs. Ever.</description>;
 
-    if (movies.length > 0) {
-      const rssFeed = [
-        `<?xml version="1.0" encoding="UTF-8"?>`,
-        `<rss version="2.0">`,
-        `  <channel>`,
-        `    <title>Daily Discovery</title>`,
-        `    <description>Daily movie recommendations, streamlined for Radarr. No contracts. No costs. Ever.</description>`
-      ];
+          movies.forEach(movie => {
+            rssFeed += 
+    <item>
+      <title>${escapeXml(movie.title)}</title>
+      <link>${escapeXml(movie.url || https://www.themoviedb.org/movie/${movie.tmdb_id})}</link>
+      <pubDate>${new Date(movie.released).toUTCString()}</pubDate>
+      <description>${escapeXml(Released in ${movie.year}.)}</description>
+    </item>;
+          });
 
-      movies.forEach(movie => {
-        rssFeed.push(`
-          <item>
-            <title>${escapeXml(movie.title)}</title>
-            <link>${escapeXml(movie.url || `https://www.themoviedb.org/movie/${movie.tmdb_id}`)}</link>
-            <pubDate>${new Date(movie.released).toUTCString()}</pubDate>
-            <description>${escapeXml(`Released in ${movie.year}.`)}</description>
-          </item>`);
+          rssFeed += 
+  </channel>
+</rss>;
+
+          res.setHeader('Content-Type', 'application/rss+xml');
+          res.send(rssFeed.trim());
+        } else {
+          res.status(500).send("Error generating RSS feed: No movies found");
+        }
+      })
+      .on('error', (err) => {
+        console.error("Error reading CSV file:", err);
+        res.status(500).send("Error reading CSV file");
       });
-
-      rssFeed.push(`  </channel>`, `</rss>`);
-      res.setHeader('Content-Type', 'application/rss+xml');
-      res.send(rssFeed.join('\n'));
-    } else {
-      // Graceful fallback message if no movies found
-      const fallbackFeed = [
-        `<?xml version="1.0" encoding="UTF-8"?>`,
-        `<rss version="2.0">`,
-        `  <channel>`,
-        `    <title>Daily Discovery</title>`,
-        `    <description>Daily movie recommendations, streamlined for Radarr. No contracts. No costs. Ever.</description>`,
-        `    <item>`,
-        `      <title>No Movies Available</title>`,
-        `      <description>We're having some technical difficulties, but working hard to get it resolved. Please check back later!</description>`,
-        `    </item>`,
-        `  </channel>`,
-        `</rss>`
-      ];
-      res.setHeader('Content-Type', 'application/rss+xml');
-      res.send(fallbackFeed.join('\n'));
-    }
-
   } catch (err) {
-    console.error("Server error:", err.message); // Enhanced error logging
-    res.status(500).send(`Server error: ${err.message}`);
+    console.error("Server error:", err);
+    res.status(500).send("Server error");
   }
 };
