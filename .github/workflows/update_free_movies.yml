@@ -80,8 +80,13 @@ jobs:
 
       - name: Format Previously Used Movies List
         run: |
-          # Reformat previously_used_movies.csv with consistent quoting
-          csvformat -U 1 -T movies/previously_used_movies.csv > movies/previously_used_movies_temp.csv
+          # Add header manually to a new temporary file
+          echo "title,year,imdb_id,tmdb_id,released,url" > movies/previously_used_movies_temp.csv
+
+          # Format the data rows and append them to the new file
+          tail -n +2 movies/previously_used_movies.csv | csvformat -U 1 -T >> movies/previously_used_movies_temp.csv
+
+          # Replace the original file with the formatted one
           mv movies/previously_used_movies_temp.csv movies/previously_used_movies.csv
 
       - name: Commit and push changes
