@@ -67,6 +67,14 @@ jobs:
               released=$(echo "$line" | cut -d',' -f5)
               url=$(echo "$line" | cut -d',' -f6)
 
+              # Use default value "" for any missing fields to maintain CSV structure
+              title="${title:-""}"
+              year="${year:-""}"
+              imdb_id="${imdb_id:-""}"
+              tmdb_id="${tmdb_id:-""}"
+              released="${released:-""}"
+              url="${url:-""}"
+
               # Log each parsed field to catch any parsing issues
               echo "  Title: $title"
               echo "  Year: $year"
@@ -86,9 +94,20 @@ jobs:
           # Append only unique entries from daily_discovery.csv to previously_used_movies.csv
           echo "Appending movies to previously_used_movies.csv:"
           while IFS=, read -r title year imdb_id tmdb_id released url; do
+            # Use default values for missing fields to maintain consistent structure
+            title="${title:-""}"
+            year="${year:-""}"
+            imdb_id="${imdb_id:-""}"
+            tmdb_id="${tmdb_id:-""}"
+            released="${released:-""}"
+            url="${url:-""}"
+            
+            # Format the line with consistent quoting around each field
+            formatted_line="\"$title\",\"$year\",\"$imdb_id\",\"$tmdb_id\",\"$released\",\"$url\""
+
             # Check if the tmdb_id already exists in previously_used_movies.csv to prevent duplicates
             if ! grep -q "$tmdb_id" movies/previously_used_movies.csv; then
-              echo "$title,$year,$imdb_id,$tmdb_id,$released,$url" >> movies/previously_used_movies.csv
+              echo "$formatted_line" >> movies/previously_used_movies.csv
               echo "  - $title"  # Log each movie title being appended to previously_used_movies.csv
             fi
           done < <(tail -n +2 movies/daily_discovery.csv)
