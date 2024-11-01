@@ -71,15 +71,18 @@ jobs:
           # Append only unique entries from daily_discovery.csv to previously_used_movies.csv
           echo "Appending movies to previously_used_movies.csv:"
           while IFS=, read -r title year imdb_id tmdb_id released url; do
-            # Format the line with each field enclosed in double quotes
-            formatted_line="\"$title\",\"$year\",\"$imdb_id\",\"$tmdb_id\",\"$released\",\"$url\""
-            
             # Check if the tmdb_id already exists in previously_used_movies.csv to prevent duplicates
             if ! grep -q "$tmdb_id" movies/previously_used_movies.csv; then
-              echo "$formatted_line" >> movies/previously_used_movies.csv
+              echo "$title,$year,$imdb_id,$tmdb_id,$released,$url" >> movies/previously_used_movies.csv
               echo "  - $title"  # Log each movie title being appended to previously_used_movies.csv
             fi
           done < <(tail -n +2 movies/daily_discovery.csv)
+
+      - name: Format Previously Used Movies List
+        run: |
+          # Reformat previously_used_movies.csv with consistent quoting
+          csvformat -U 1 -T movies/previously_used_movies.csv > movies/previously_used_movies_temp.csv
+          mv movies/previously_used_movies_temp.csv movies/previously_used_movies.csv
 
       - name: Commit and push changes
         env:
