@@ -18,24 +18,25 @@ function escapeXml(unsafe) {
 module.exports = async (req, res) => {
   try {
     const csvFilePath = path.join(__dirname, '../movies', 'daily_discovery.csv');
+    const fileTimestamp = new Date().getTime(); // Cache-busting timestamp
 
     if (!fs.existsSync(csvFilePath)) {
       res.status(404).send("No movie data found");
       return;
     }
 
-    // Set headers to prevent caching
-    res.setHeader('Cache-Control', 'no-store');
+    // Update headers to prevent caching and force refresh in Vercel environments
+    res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
 
     const movies = [];
-    fs.createReadStream(csvFilePath)
+    fs.createReadStream(`${csvFilePath}?t=${fileTimestamp}`) // Adds timestamp parameter
       .pipe(csvParser())
       .on('data', (row) => {
         movies.push(row);
       })
       .on('end', () => {
         if (movies.length > 0) {
-          // Generate RSS feed content without extra whitespace at the start
           let rssFeed = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
