@@ -102,23 +102,21 @@ jobs:
             released="${released:-""}"
             url="${url:-""}"
             
-            # Format the line with consistent quoting around each field
-            formatted_line="\"$title\",\"$year\",\"$imdb_id\",\"$tmdb_id\",\"$released\",\"$url\""
-
             # Check if the tmdb_id already exists in previously_used_movies.csv to prevent duplicates
             if ! grep -q "$tmdb_id" movies/previously_used_movies.csv; then
-              echo "$formatted_line" >> movies/previously_used_movies.csv
+              # Append the line without additional quotes
+              echo "$title,$year,$imdb_id,$tmdb_id,$released,$url" >> movies/previously_used_movies.csv
               echo "  - $title"  # Log each movie title being appended to previously_used_movies.csv
             fi
           done < <(tail -n +2 movies/daily_discovery.csv)
 
       - name: Format Previously Used Movies List
         run: |
-          # Add header manually to a new temporary file
+          # Add header manually to a new temporary file without extra quotes
           echo "title,year,imdb_id,tmdb_id,released,url" > movies/previously_used_movies_temp.csv
 
-          # Format the data rows and append them to the new file
-          tail -n +2 movies/previously_used_movies.csv | csvformat -U 1 -T >> movies/previously_used_movies_temp.csv
+          # Format the data rows and append them to the new file without additional quotes
+          tail -n +2 movies/previously_used_movies.csv | csvformat -U 1 >> movies/previously_used_movies_temp.csv
 
           # Replace the original file with the formatted one
           mv movies/previously_used_movies_temp.csv movies/previously_used_movies.csv
