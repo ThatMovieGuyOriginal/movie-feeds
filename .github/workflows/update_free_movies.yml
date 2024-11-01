@@ -27,8 +27,8 @@ jobs:
 
       - name: Check if All Movies Have Been Used
         run: |
-          # Count lines in master and previously used lists
-          master_count=$(tail -n +2 movies/master_movie_list.csv | wc -l)
+          # Count lines in all master movie lists and previously used list
+          master_count=$(cat movies/master_movie_list_*.csv | tail -n +2 | wc -l)
           used_count=$(tail -n +2 movies/previously_used_movies.csv | wc -l)
           # If all movies have been used, reset previously_used_movies.csv
           if [ "$master_count" -eq "$used_count" ]; then
@@ -36,24 +36,25 @@ jobs:
             echo "title,year,imdb_id,tmdb_id,released,url" > movies/previously_used_movies.csv
           fi
 
-      - name: Select Random Movie Excluding Previously Used Movies
+      - name: Select Random Movies Excluding Previously Used Movies
         run: |
           # Clear daily_discovery.csv and add headers
           echo "title,year,imdb_id,tmdb_id,released,url" > movies/daily_discovery.csv
           
-          # Select two random movies from master_movie_list.csv excluding headers and previously_used_movies.csv
-          selected_movies=$(tail -n +2 movies/master_movie_list.csv | \
+          # Concatenate all master movie lists and filter out previously used movies
+          selected_movies=$(cat movies/master_movie_list_*.csv | \
+            tail -n +2 | \
             csvcut -c title,year,imdb_id,tmdb_id,released,url | \
             csvgrep -i -c tmdb_id -f movies/previously_used_movies.csv | \
-            shuf -n 2)
+            shuf -n 5)
 
           # Log the raw selected_movies output for debugging
           echo "Raw selected movies output:"
           echo "$selected_movies"
 
-          # Check if exactly two movies were selected
-          if [ $(echo "$selected_movies" | wc -l) -ne 2 ]; then
-            echo "Error: Less than two unique movies available for selection. Skipping this run."
+          # Check if exactly five movies were selected
+          if [ $(echo "$selected_movies" | wc -l) -ne 5 ]; then
+            echo "Error: Less than five unique movies available for selection. Skipping this run."
             exit 1
           else
             echo "Selected movies for daily discovery:"
