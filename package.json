@@ -1,5 +1,5 @@
 {
-  "name": "dailydiscovery",
+  "name": "movie-feeds",
   "version": "1.0.0",
   "main": "api/daily-discovery.js",
   "dependencies": {
