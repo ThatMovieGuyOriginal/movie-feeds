@@ -25,27 +25,16 @@ jobs:
             echo "title,year,imdb_id,tmdb_id,released,url" > movies/previously_used_movies.csv
           fi
 
-      - name: Check if All Movies Have Been Used
-        run: |
-          # Count lines in all master movie lists and previously used list
-          master_count=$(cat movies/master_movie_list_*.csv | tail -n +2 | wc -l)
-          used_count=$(tail -n +2 movies/previously_used_movies.csv | wc -l)
-          # If all movies have been used, reset previously_used_movies.csv
-          if [ "$master_count" -eq "$used_count" ]; then
-            echo "Resetting previously used movies list as all movies have been used."
-            echo "title,year,imdb_id,tmdb_id,released,url" > movies/previously_used_movies.csv
-          fi
-
       - name: Select Random Movies Excluding Previously Used Movies
         run: |
           # Clear daily_discovery.csv and add headers
           echo "title,year,imdb_id,tmdb_id,released,url" > movies/daily_discovery.csv
-          
+
           # Concatenate all master movie lists, select only required columns, skip headers, and filter out previously used movies
-          selected_movies=$(cat movies/master_movie_list_*.csv | \
+          selected_movies=$(cat movies/master_movie_list_*.csv 2>/dev/null | \
             tail -n +2 | \
-            csvcut -c 1,3,6,8,12,20 | \   # Select only relevant columns by position
-            csvgrep -i -c 3 -f movies/previously_used_movies.csv | \   # Filter by imdb_id column position (3rd in selected columns)
+            csvcut -c 1,3,6,8,12,20 2>/dev/null | \
+            csvgrep -i -c 3 -f movies/previously_used_movies.csv 2>/dev/null | \
             shuf -n 5)
 
           # Log the raw selected_movies output for debugging
@@ -53,15 +42,15 @@ jobs:
           echo "$selected_movies"
 
           # Check if exactly five movies were selected
-          if [ $(echo "$selected_movies" | wc -l) -ne 5 ]; then
-            echo "Error: Less than five unique movies available for selection. Skipping this run."
+          if [ -z "$selected_movies" ] || [ $(echo "$selected_movies" | wc -l) -ne 5 ]; then
+            echo "Error: Less than five unique movies available for selection or no valid movies were found. Skipping this run."
             exit 1
           else
             echo "Selected movies for daily discovery:"
             # Format each selected movie with quotes around each field before appending
             while IFS= read -r line; do
               echo "Processing line: $line"  # Log the line being processed
-              
+
               title=$(echo "$line" | cut -d',' -f1)
               year=$(echo "$line" | cut -d',' -f2)
               imdb_id=$(echo "$line" | cut -d',' -f3)
