@@ -4,6 +4,8 @@
   "main": "api/dailydiscovery.js",
   "dependencies": {
     "csv-parser": "^3.0.0",
-    "xml2js": "^0.4.23"
+    "xml2js": "^0.4.23",
+    "chrome-aws-lambda": "^10.1.0",
+    "puppeteer-core": "^10.1.0"
   }
 }
