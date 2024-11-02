@@ -54,8 +54,6 @@ jobs:
               filename=$(echo "$line" | cut -d',' -f1)
               movie_data=$(echo "$line" | cut -d',' -f2-)
 
-
-
               title=$(echo "$line" | cut -d',' -f1)
               year=$(echo "$line" | cut -d',' -f2)
               imdb_id=$(echo "$line" | cut -d',' -f3)
@@ -128,3 +126,20 @@ jobs:
           git add movies/daily_discovery.csv movies/previously_used_movies.csv
           git commit -m "Update free movies for RSS feed and log used movie"
           git push origin main
+
+      # New step to trigger Vercel redeployment after CSV updates
+      - name: Trigger Vercel Redeploy for RSS Feed Update
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          curl -X POST "https://api.vercel.com/v1/integrations/deploy/prj_EY5snfMLMgzIPC5E68pLuR6MLYsu" \
+          -H "Authorization: Bearer $VERCEL_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{ "force": true }'
+
+      # New step to trigger Vercel webhook for image generation if RSS feed changes
+      - name: Trigger Vercel Image Generation Webhook
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          curl -X POST "$VERCEL_DEPLOY_HOOK_URL"
