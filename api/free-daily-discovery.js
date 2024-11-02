@@ -16,10 +16,10 @@ const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w200';
 
 async function fetchMoviePosterUrl(tmdbId) {
-  const url = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
+  const url = https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US;
   const response = await fetch(url);
   const data = await response.json();
-  return data.poster_path ? `${TMDB_IMAGE_BASE_URL}${data.poster_path}` : null;
+  return data.poster_path ? ${TMDB_IMAGE_BASE_URL}${data.poster_path} : null;
 }
 
 export default async (req, res) => {
@@ -64,7 +64,6 @@ export default async (req, res) => {
     const posterWidth = 100;
     const posterHeight = posterWidth * 1.5; // Keep aspect ratio
     const posterMargin = 20;
-    const itemSpacing = 10; // Increased spacing between items
     let estimatedHeight = margin;
 
     // Create a temporary canvas context to measure text height
@@ -96,7 +95,7 @@ export default async (req, res) => {
       });
 
       estimatedHeight += linesNeeded * lineHeight; // Height for wrapped description lines
-      estimatedHeight += itemSpacing; // Space after each item
+      estimatedHeight += 20; // Space after each item
     });
 
     // Generate the image with precise dynamic height
@@ -124,7 +123,7 @@ export default async (req, res) => {
           const poster = await loadImage(item.posterUrl);
           context.drawImage(poster, 20, posterY, posterWidth, posterHeight); // Draw poster
         } catch (err) {
-          console.error(`Error loading poster for ${item.title}:`, err);
+          console.error(Error loading poster for ${item.title}:, err);
         }
       }
 
@@ -132,17 +131,39 @@ export default async (req, res) => {
       const textX = 20 + posterWidth + posterMargin;  // Position text beside the poster
       context.font = 'bold 18px Roboto';
       context.fillStyle = '#000000';
-      context.fillText(`${item.title}`, textX, posterY + 20); // Align title with top of poster
+      context.fillText(${item.title}, textX, posterY + 20); // Align title with top of poster
       context.font = '16px Roboto';
       context.fillStyle = '#555555';
-      context.fillText(`(${item.year})`, textX, posterY + 50); // Year positioned slightly below title
+      context.fillText((${item.year}), textX, posterY + 50); // Year positioned slightly below title
 
       // Description beside the poster, wrapped and aligned beneath the title and year
       const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
       context.fillStyle = '#333333';
-      y = wrapText(context, `${description}`, textX, posterY + 80, 760 - posterWidth - posterMargin, 20); // Description starts below year
+      y = wrapText(context, ${description}, textX, posterY + 80, 760 - posterWidth - posterMargin, 20); // Description starts below year
 
-      y += posterHeight + itemSpacing; // Add space before the next item starts
+      y += 20; // Add space before the next item starts
+    }
+
+    // Helper function to wrap text
+    function wrapText(context, text, x, y, maxWidth, lineHeight) {
+      const words = text.split(' ');
+      let line = '';
+      
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = context.measureText(testLine);
+        const testWidth = metrics.width;
+
+        if (testWidth > maxWidth && n > 0) {
+          context.fillText(line, x, y);
+          line = words[n] + ' ';
+          y += lineHeight;
+        } else {
+          line = testLine;
+        }
+      }
+      context.fillText(line, x, y);
+      return y + lineHeight;
     }
 
     const imageBuffer = canvas.toBuffer('image/png');
@@ -164,25 +185,3 @@ export default async (req, res) => {
     res.send(imageBuffer);
   }
 };
-
-// Helper function to wrap text
-function wrapText(context, text, x, y, maxWidth, lineHeight) {
-  const words = text.split(' ');
-  let line = '';
-  
-  for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + ' ';
-    const metrics = context.measureText(testLine);
-    const testWidth = metrics.width;
-
-    if (testWidth > maxWidth && n > 0) {
-      context.fillText(line, x, y);
-      line = words[n] + ' ';
-      y += lineHeight;
-    } else {
-      line = testLine;
-    }
-  }
-  context.fillText(line, x, y);
-  return y + lineHeight;
-}
