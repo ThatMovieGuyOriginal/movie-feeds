@@ -26,8 +26,8 @@ export default async (req, res) => {
     // Step 4: Launch Puppeteer to render HTML
     const browser = await puppeteer.launch({
       args: [...chrome.args, '--no-sandbox', '--disable-setuid-sandbox'],
-      executablePath: await chrome.executablePath,
-      headless: true,
+      executablePath: await chrome.executablePath || '/usr/bin/chromium-browser',
+      headless: chrome.headless,
     });
     console.log("Puppeteer launched.");
 
