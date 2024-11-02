@@ -5,7 +5,7 @@
   "dependencies": {
     "csv-parser": "^3.0.0",
     "xml2js": "^0.4.23",
-    "@sparticuz/chromium": "^106.0.0",
-    "puppeteer-core": "^10.1.0"
+    "puppeteer-core": "^10.1.0",
+    "canvas": "^2.11.0"
   }
 }
