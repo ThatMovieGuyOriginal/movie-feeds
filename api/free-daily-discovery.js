@@ -1,7 +1,7 @@
-const { createCanvas, registerFont, loadImage } = require('canvas');
-const fetch = require('node-fetch');
-const { parseStringPromise } = require('xml2js');
-const path = require('path');
+import { createCanvas, registerFont, loadImage } from 'canvas';
+import fetch from 'node-fetch';
+import { parseStringPromise } from 'xml2js';
+import path from 'path';
 
 // Register the custom font with error handling
 try {
@@ -22,7 +22,7 @@ async function fetchMoviePosterUrl(tmdbId) {
   return data.poster_path ? `${TMDB_IMAGE_BASE_URL}${data.poster_path}` : null;
 }
 
-module.exports = async (req, res) => {
+export default async (req, res) => {
   try {
     const feedUrl = 'https://thatmovieguy.vercel.app/api/rss-daily-discovery';
     const response = await fetch(feedUrl, { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
@@ -64,10 +64,10 @@ module.exports = async (req, res) => {
     const posterWidth = 100;
     const posterHeight = posterWidth * 1.5; // Keep aspect ratio
     const posterMargin = 20;
-    const itemSpacing = 20; // Add space between items
+    const itemSpacing = 30; // Increased spacing between items
     let estimatedHeight = margin;
 
-    // Create a temporary canvas context for text measurement
+    // Create a temporary canvas context to measure text height
     const tempCanvas = createCanvas(800, 100);
     const tempContext = tempCanvas.getContext('2d');
     tempContext.font = '16px Roboto';
@@ -164,3 +164,25 @@ module.exports = async (req, res) => {
     res.send(imageBuffer);
   }
 };
+
+// Helper function to wrap text
+function wrapText(context, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + ' ';
+    const metrics = context.measureText(testLine);
+    const testWidth = metrics.width;
+
+    if (testWidth > maxWidth && n > 0) {
+      context.fillText(line, x, y);
+      line = words[n] + ' ';
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  context.fillText(line, x, y);
+  return y + lineHeight;
+}
