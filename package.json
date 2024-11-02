@@ -1,6 +1,7 @@
 {
   "name": "movie-feeds",
   "version": "1.3.26",
+  "type": "module",
   "main": "api/rss-daily-discovery.js",
   "dependencies": {
     "csv-parser": "^3.0.0",
