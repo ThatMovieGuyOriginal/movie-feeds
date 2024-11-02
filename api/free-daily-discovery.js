@@ -22,7 +22,7 @@ async function fetchMoviePosterUrl(tmdbId) {
   return data.poster_path ? `${TMDB_IMAGE_BASE_URL}${data.poster_path}` : null;
 }
 
-export default async (req, res) => {
+module.exports = async (req, res) => {
   try {
     const feedUrl = 'https://thatmovieguy.vercel.app/api/rss-daily-discovery';
     const response = await fetch(feedUrl, { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
