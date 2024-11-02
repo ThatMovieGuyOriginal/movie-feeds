@@ -67,6 +67,11 @@ module.exports = async (req, res) => {
     const itemSpacing = 20; // Add space between items
     let estimatedHeight = margin;
 
+    // Create a temporary canvas context for text measurement
+    const tempCanvas = createCanvas(800, 100);
+    const tempContext = tempCanvas.getContext('2d');
+    tempContext.font = '16px Roboto';
+
     // Calculate the exact height needed for each feed item
     estimatedHeight += 40; // Space for the header
     feedItems.forEach(item => {
