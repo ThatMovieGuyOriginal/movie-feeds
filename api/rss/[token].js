@@ -1,60 +1,129 @@
 // api/rss/[token].js
-import db from '../../config/firebaseAdmin'; // Import Firestore config if using Firebase
+import db from '../../config/firebaseAdmin';
+import csvParser from 'csv-parser';
+import fs from 'fs';
+import path from 'path';
 
-// Placeholder function to retrieve static RSS content
-async function getStaticRssFeedContent() {
-  // Here, return the static RSS feed content. 
-  // You could load this from a file, a database, or a hardcoded string.
-  return `
-    <rss version="2.0">
-      <channel>
-        <title>Your Custom Feed</title>
-        <link>https://yourdomain.vercel.app</link>
-        <description>This is a static RSS feed for all valid users.</description>
-        <item>
-          <title>Movie 1</title>
-          <link>https://link-to-movie-1</link>
-          <description>Movie 1 description</description>
-        </item>
-        <item>
-          <title>Movie 2</title>
-          <link>https://link-to-movie-2</link>
-          <description>Movie 2 description</description>
-        </item>
-        <!-- Add more items as needed -->
-      </channel>
-    </rss>
-  `;
+// Helper function to escape XML special characters
+function escapeXml(unsafe) {
+  return unsafe.replace(/[&<>"']/g, function (c) {
+    return {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&apos;'
+    }[c];
+  });
+}
+
+// Function to fetch description from TMDB
+async function fetchMovieDescription(tmdb_id, api_key) {
+  const url = `https://api.themoviedb.org/3/movie/${tmdb_id}?api_key=${api_key}&language=en-US`;
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.overview || "Description not available."; // Fallback if no description is provided
+  } catch (error) {
+    console.error(`Error fetching description for TMDB ID ${tmdb_id}:`, error);
+    return "Description not available."; // Fallback on error
+  }
+}
+
+// Function to generate RSS feed from a CSV file
+async function generateRssFeedFromCsv(csvFilePath, api_key) {
+  return new Promise((resolve, reject) => {
+    const movies = [];
+
+    if (!fs.existsSync(csvFilePath)) {
+      return reject("CSV file not found");
+    }
+
+    fs.createReadStream(csvFilePath)
+      .pipe(csvParser({ quote: '"', escape: '"', relax: true }))
+      .on('data', (row) => {
+        if (row.title && row.tmdb_id) {
+          movies.push({
+            title: row.title,
+            year: row.year || "Unknown Year",
+            imdb_id: row.imdb_id,
+            tmdb_id: row.tmdb_id,
+            released: row.released || "Release date unknown",
+            url: row.url
+          });
+        }
+      })
+      .on('end', async () => {
+        if (movies.length === 0) {
+          return reject("No movies found in CSV");
+        }
+
+        let rssFeed = `<?xml version="1.0" encoding="UTF-8"?>
+          <rss version="2.0">
+            <channel>
+              <title>Custom Movie List</title>
+              <description>Movies based on your purchased list.</description>`;
+
+        for (const movie of movies) {
+          const releaseDate = new Date(movie.released);
+          const pubDate = isNaN(releaseDate.getTime()) ? "Unknown Date" : releaseDate.toUTCString();
+
+          const description = await fetchMovieDescription(movie.tmdb_id, api_key);
+
+          rssFeed += `
+            <item>
+              <title>${escapeXml(movie.title)}</title>
+              <link>${escapeXml(movie.url || `https://www.themoviedb.org/movie/${movie.tmdb_id}`)}</link>
+              <pubDate>${pubDate}</pubDate>
+              <description>${escapeXml(description)}</description>
+            </item>`;
+        }
+
+        rssFeed += `
+            </channel>
+          </rss>`;
+
+        resolve(rssFeed);
+      })
+      .on('error', (err) => {
+        console.error("Error reading CSV file:", err);
+        reject("Error reading CSV file");
+      });
+  });
 }
 
 export default async function handler(req, res) {
   const { token } = req.query;
 
   try {
-    // Validate the token by checking it against Firestore
+    // Retrieve the purchase record from Firestore using the token
     const snapshot = await db.collection('purchases').where('token', '==', token).get();
 
     if (snapshot.empty) {
-      // Token is invalid if no match found in Firestore
       return res.status(404).json({ error: 'Invalid token' });
     }
 
     const purchase = snapshot.docs[0].data();
+    const { product_id } = purchase;
 
     // Check if the token has expired (optional)
     if (purchase.expirationDate && new Date() > purchase.expirationDate.toDate()) {
       return res.status(403).json({ error: 'Token expired' });
     }
 
-    // If token is valid, get the static RSS feed content
-    const rssContent = await getStaticRssFeedContent();
+    // Path to the corresponding CSV file based on product_id
+    const csvFilePath = path.join(__dirname, '../../movies', `${product_id}.csv`);
+    const api_key = process.env.TMDB_API_KEY; // TMDB API key stored in environment variables
 
-    // Set content type for RSS and return the static content
+    // Generate RSS feed content from the CSV
+    const rssContent = await generateRssFeedFromCsv(csvFilePath, api_key);
+
+    // Set content type for RSS and return the RSS feed
     res.setHeader('Content-Type', 'application/rss+xml');
     res.status(200).send(rssContent);
 
   } catch (error) {
-    console.error('Error fetching RSS feed:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    console.error('Error generating RSS feed:', error);
+    res.status(500).send("Error generating RSS feed");
   }
 }
