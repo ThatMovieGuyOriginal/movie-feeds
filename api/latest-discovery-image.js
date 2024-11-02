@@ -1,4 +1,4 @@
-import { createCanvas, registerFont } from 'canvas';
+import { createCanvas, registerFont, loadImage } from 'canvas';
 import fetch from 'node-fetch';
 import { parseStringPromise } from 'xml2js';
 import path from 'path';
@@ -9,6 +9,17 @@ try {
   console.log("Custom font registered successfully");
 } catch (err) {
   console.error("Error registering font:", err);
+}
+
+// TMDB API details
+const TMDB_API_KEY = process.env.TMDB_API_KEY;
+const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w200';
+
+async function fetchMoviePosterUrl(tmdbId) {
+  const url = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
+  const response = await fetch(url);
+  const data = await response.json();
+  return data.poster_path ? `${TMDB_IMAGE_BASE_URL}${data.poster_path}` : null;
 }
 
 export default async (req, res) => {
@@ -29,33 +40,42 @@ export default async (req, res) => {
       throw parseError;
     }
 
-    const feedItems = parsedFeed.rss?.channel[0]?.item?.slice(0, 5).map(item => ({
-      title: item.title[0].replace(/[^\x20-\x7E]/g, ''),  // ASCII-only
-      year: new Date(item.pubDate[0]).getFullYear().toString(),
-      description: item.description[0].replace(/[^\x20-\x7E]/g, ''),  // ASCII-only
-      pubDate: item.pubDate[0],
-    }));
+    // Extract feed items and fetch posters
+    const feedItems = await Promise.all(
+      parsedFeed.rss?.channel[0]?.item?.slice(0, 5).map(async (item) => {
+        const tmdbId = item.link[0].split('/').pop(); // Assumes TMDB ID is at the end of the URL
+        const posterUrl = await fetchMoviePosterUrl(tmdbId); // Fetch poster URL
+        return {
+          title: item.title[0].replace(/[^\x20-\x7E]/g, ''),
+          year: new Date(item.pubDate[0]).getFullYear().toString(),
+          description: item.description[0].replace(/[^\x20-\x7E]/g, ''),
+          pubDate: item.pubDate[0],
+          posterUrl,
+        };
+      })
+    );
 
     console.log("Feed items parsed for rendering:", feedItems);
 
     // Set up dynamic height calculation
-    const margin = 40;            // Space at the top and bottom
-    const lineHeight = 25;        // Height for regular lines
-    const titleHeight = 30;       // Height for titles
-    const itemSpacing = 40;       // Space between items
-    let estimatedHeight = margin; // Start with a margin at the top
+    const margin = 40;
+    const lineHeight = 25;
+    const titleHeight = 30;
+    const itemSpacing = 80; // Increased spacing for poster
+    const posterWidth = 100;
+    const posterMargin = 20;
+    let estimatedHeight = margin;
 
     // Create a temporary canvas context to measure text height
     const tempCanvas = createCanvas(800, 100);
     const tempContext = tempCanvas.getContext('2d');
     tempContext.font = '16px Roboto';
 
-    // Estimate required height based on text
+    // Estimate required height based on text and poster
     estimatedHeight += 40; // Space for the header
     feedItems.forEach(item => {
-      estimatedHeight += titleHeight + lineHeight; // Title and year lines
+      estimatedHeight += titleHeight + lineHeight;
 
-      // Measure description text for wrapping
       const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
       const words = description.split(' ');
       let line = '';
@@ -65,7 +85,7 @@ export default async (req, res) => {
         const testLine = line + word + ' ';
         const testWidth = tempContext.measureText(testLine).width;
 
-        if (testWidth > 760 && line.length > 0) {
+        if (testWidth > (800 - posterWidth - posterMargin * 2) && line.length > 0) {
           linesNeeded += 1;
           line = word + ' ';
         } else {
@@ -73,8 +93,8 @@ export default async (req, res) => {
         }
       });
 
-      estimatedHeight += linesNeeded * lineHeight; // Height for wrapped description
-      estimatedHeight += itemSpacing; // Space between items
+      estimatedHeight += linesNeeded * lineHeight;
+      estimatedHeight += itemSpacing;
     });
 
     // Generate the image with dynamic height
@@ -84,36 +104,44 @@ export default async (req, res) => {
     context.fillRect(0, 0, canvas.width, canvas.height);
 
     // Set text properties
-    context.fillStyle = '#333333'; // Dark text color
-    context.font = 'bold 20px Roboto';  // Bold font for headers
+    context.fillStyle = '#333333';
+    context.font = 'bold 20px Roboto';
 
     // Render header
     let y = margin;
     context.fillText("Free Daily Discovery", 20, y);
     y += 40;
 
-    // Render feed items
-    feedItems.forEach((item, index) => {
-      // Title in bold
+    // Render feed items with posters
+    for (const item of feedItems) {
+      // Load the poster image if available
+      if (item.posterUrl) {
+        try {
+          const poster = await loadImage(item.posterUrl);
+          context.drawImage(poster, 20, y, posterWidth, posterWidth * 1.5); // Aspect ratio for poster
+        } catch (err) {
+          console.error(`Error loading poster for ${item.title}:`, err);
+        }
+      }
+
+      // Title and Year beside the poster
       context.font = 'bold 18px Roboto';
       context.fillStyle = '#000000';
-      context.fillText(`${item.title}`, 20, y);
+      context.fillText(`${item.title}`, 20 + posterWidth + posterMargin, y);
       y += 30;
 
-      // Year and pubDate in regular font
       context.font = '16px Roboto';
       context.fillStyle = '#555555';
-      context.fillText(`(${item.year})`, 20, y);
+      context.fillText(`(${item.year})`, 20 + posterWidth + posterMargin, y);
       y += 25;
 
-      // Description, truncated if too long
+      // Description beside the poster, wrapped and truncated if too long
       const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
       context.fillStyle = '#333333';
-      y = wrapText(context, `${description}`, 20, y, 760, 20);
+      y = wrapText(context, `${description}`, 20 + posterWidth + posterMargin, y, 760 - posterWidth - posterMargin, 20);
 
-      // Add spacing between items
       y += itemSpacing;
-    });
+    }
 
     // Helper function to wrap text
     function wrapText(context, text, x, y, maxWidth, lineHeight) {
@@ -148,7 +176,7 @@ export default async (req, res) => {
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = '#ff0000';
-    context.font = '24px Arial';  // Use fallback font in the error message
+    context.font = '24px Arial';
     context.fillText('Error generating image:', 20, 20);
     context.fillText(error.toString(), 20, 60);
     const imageBuffer = canvas.toBuffer('image/png');
