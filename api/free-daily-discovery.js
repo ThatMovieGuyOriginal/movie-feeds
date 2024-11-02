@@ -1,7 +1,7 @@
-const { createCanvas, registerFont, loadImage } = require('canvas');
-const fetch = require('node-fetch');
-const { parseStringPromise } = require('xml2js');
-const path = require('path');
+import { createCanvas, registerFont, loadImage } from 'canvas';
+import fetch from 'node-fetch';
+import { parseStringPromise } from 'xml2js';
+import path from 'path';
 
 // Register the custom font with error handling
 try {
