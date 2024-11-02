@@ -2,7 +2,7 @@ name: Update Daily Discovery List
 
 on:
   schedule:
-    - cron: '0 */12 * * *' # Runs every 12 hours
+    - cron: '*/1 * * * *' # Runs every 12 hours
   workflow_dispatch: # Enables manual runs
   
 jobs:
@@ -127,4 +127,4 @@ jobs:
           git remote set-url origin https://$DAILY_DISCOVERY_PAT@github.com/ThatMovieGuyOriginal/movie-feeds.git
           git add movies/daily_discovery.csv movies/previously_used_movies.csv
           git commit -m "Update free movies for RSS feed and log used movie"
-          git push origin main
+          git push https://${{ secrets.DAILY_DISCOVERY_PAT }}@github.com/ThatMovieGuyOriginal/movie-feeds.git main
