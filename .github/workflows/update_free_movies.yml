@@ -127,4 +127,4 @@ jobs:
           git remote set-url origin https://$DAILY_DISCOVERY_PAT@github.com/ThatMovieGuyOriginal/movie-feeds.git
           git add movies/daily_discovery.csv movies/previously_used_movies.csv
           git commit -m "Update free movies for RSS feed and log used movie"
-          git push https://${{ secrets.DAILY_DISCOVERY_PAT }}@github.com/ThatMovieGuyOriginal/movie-feeds.git main
+          git push origin main
