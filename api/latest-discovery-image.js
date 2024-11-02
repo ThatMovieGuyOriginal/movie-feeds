@@ -3,8 +3,13 @@ import fetch from 'node-fetch';
 import { parseStringPromise } from 'xml2js';
 import path from 'path';
 
-// Register the custom font
-registerFont(path.join(__dirname, '../fonts/Roboto-Regular.ttf'), { family: 'Roboto' });
+// Register the custom font with error handling
+try {
+  registerFont(path.join(__dirname, '../fonts/Roboto-Regular.ttf'), { family: 'Roboto' });
+  console.log("Custom font registered successfully");
+} catch (err) {
+  console.error("Error registering font:", err);
+}
 
 export default async (req, res) => {
   try {
@@ -39,14 +44,21 @@ export default async (req, res) => {
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Use the custom font registered earlier
-    context.font = '16px Roboto';
+    // Set text properties and add a red border around the canvas for visibility
+    context.strokeStyle = '#FF0000';
+    context.lineWidth = 2;
+    context.strokeRect(0, 0, canvas.width, canvas.height);
+
+    context.fillStyle = '#000000';  // Set text color to black for visibility
+    context.font = '24px Roboto, Arial';  // Larger font size and fallback
 
     // Render the parsed data on canvas
     let y = 40;
     context.fillText("Debug Info: Feed Items", 20, y);
+    context.fillText("Test Text", 20, 60); // Simple test text at a fixed position
+
     feedItems.forEach((item, index) => {
-      y += 20;
+      y += 40;
       context.fillText(`Item ${index + 1}: Title - ${item.title}`, 20, y);
       y += 20;
       context.fillText(`Year - ${item.year}, PubDate - ${item.pubDate}`, 20, y);
@@ -64,9 +76,9 @@ export default async (req, res) => {
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = '#ff0000';
-    context.font = '16px Roboto';  // Use the custom font in the error message too
+    context.font = '24px Arial';  // Use fallback font in the error message
     context.fillText('Error generating image:', 20, 20);
-    context.fillText(error.toString(), 20, 40);
+    context.fillText(error.toString(), 20, 60);
     const imageBuffer = canvas.toBuffer('image/png');
     res.setHeader('Content-Type', 'image/png');
     res.send(imageBuffer);
