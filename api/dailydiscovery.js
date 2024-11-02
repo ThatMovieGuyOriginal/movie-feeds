@@ -1,6 +1,7 @@
 const csvParser = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
+const fetch = require('node-fetch');
 
 // Helper function to escape XML special characters
 function escapeXml(unsafe) {
@@ -15,9 +16,23 @@ function escapeXml(unsafe) {
   });
 }
 
+// Function to fetch description from TMDB
+async function fetchMovieDescription(tmdb_id, api_key) {
+  const url = `https://api.themoviedb.org/3/movie/${tmdb_id}?api_key=${api_key}&language=en-US`;
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.overview || "Description not available."; // Fallback if no description is provided
+  } catch (error) {
+    console.error(`Error fetching description for TMDB ID ${tmdb_id}:`, error);
+    return "Description not available."; // Fallback on error
+  }
+}
+
 module.exports = async (req, res) => {
   try {
     const csvFilePath = path.join(__dirname, '../movies', 'daily_discovery.csv');
+    const api_key = process.env.TMDB_API_KEY; // Assume TMDB API key is stored in environment variables
     const fileTimestamp = new Date().getTime(); // Cache-busting timestamp
 
     if (!fs.existsSync(csvFilePath)) {
@@ -57,15 +72,18 @@ module.exports = async (req, res) => {
           movies.forEach(movie => {
             const releaseDate = new Date(movie.released);
             const pubDate = isNaN(releaseDate.getTime()) ? "Unknown Date" : releaseDate.toUTCString();
+
+            // Fetch the description using TMDB API
+            const description = await fetchMovieDescription(movie.tmdb_id, api_key);
       
             rssFeed += `
             <item>
               <title>${escapeXml(movie.title)}</title>
               <link>${escapeXml(movie.url || `https://www.themoviedb.org/movie/${movie.tmdb_id}`)}</link>
               <pubDate>${pubDate}</pubDate>
-              <description>${escapeXml(`Released in ${movie.year}.`)}</description>
+              <description>${escapeXml(description)}</description>
             </item>`;
-          });
+          }
         
           rssFeed += `
           </channel>
