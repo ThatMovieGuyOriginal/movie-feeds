@@ -19,13 +19,14 @@ export default async (req, res) => {
     }));
     console.log("Feed items extracted:", feedItems);
 
-    // Launch Puppeteer with chrome-aws-lambda for Serverless environment
+    // Launch Puppeteer with chrome-aws-lambda for Vercel environment
     const browser = await puppeteer.launch({
-      args: [...chrome.args, '--no-sandbox', '--disable-setuid-sandbox'],
+      args: chrome.args,
       executablePath: await chrome.executablePath || '/usr/bin/chromium-browser',
-      headless: true,
+      headless: chrome.headless,
     });
     console.log("Puppeteer launched.");
+
 
     const page = await browser.newPage();
 
