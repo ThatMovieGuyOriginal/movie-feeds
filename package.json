@@ -6,6 +6,10 @@
     "csv-parser": "^3.0.0",
     "xml2js": "^0.4.23",
     "puppeteer-core": "^10.1.0",
-    "canvas": "^2.11.0"
+    "canvas": "^2.11.0",
+    "node-fetch": "^2.6.1" // Adding node-fetch for fetching the RSS feed
+  },
+  "engines": {
+    "node": ">=14.x"
   }
 }
