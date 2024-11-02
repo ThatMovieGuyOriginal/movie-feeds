@@ -16,10 +16,10 @@ const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w200';
 
 async function fetchMoviePosterUrl(tmdbId) {
-  const url = https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US;
+  const url = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
   const response = await fetch(url);
   const data = await response.json();
-  return data.poster_path ? ${TMDB_IMAGE_BASE_URL}${data.poster_path} : null;
+  return data.poster_path ? `${TMDB_IMAGE_BASE_URL}${data.poster_path}` : null;
 }
 
 export default async (req, res) => {
@@ -123,7 +123,7 @@ export default async (req, res) => {
           const poster = await loadImage(item.posterUrl);
           context.drawImage(poster, 20, posterY, posterWidth, posterHeight); // Draw poster
         } catch (err) {
-          console.error(Error loading poster for ${item.title}:, err);
+          console.error('Error loading poster for ${item.title}:', err);
         }
       }
 
@@ -131,15 +131,15 @@ export default async (req, res) => {
       const textX = 20 + posterWidth + posterMargin;  // Position text beside the poster
       context.font = 'bold 18px Roboto';
       context.fillStyle = '#000000';
-      context.fillText(${item.title}, textX, posterY + 20); // Align title with top of poster
+      context.fillText('${item.title}', textX, posterY + 20); // Align title with top of poster
       context.font = '16px Roboto';
       context.fillStyle = '#555555';
-      context.fillText((${item.year}), textX, posterY + 50); // Year positioned slightly below title
+      context.fillText('(${item.year})', textX, posterY + 50); // Year positioned slightly below title
 
       // Description beside the poster, wrapped and aligned beneath the title and year
       const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
       context.fillStyle = '#333333';
-      y = wrapText(context, ${description}, textX, posterY + 80, 760 - posterWidth - posterMargin, 20); // Description starts below year
+      y = wrapText(context, '${description}', textX, posterY + 80, 760 - posterWidth - posterMargin, 20); // Description starts below year
 
       y += 20; // Add space before the next item starts
     }
