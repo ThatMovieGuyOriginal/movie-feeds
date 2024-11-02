@@ -9,16 +9,17 @@ export default async (req, res) => {
     const rssFeed = await response.text();
 
     // Set up canvas
-    const canvas = createCanvas(800, 1200);  // Increased height for debug info
+    const canvas = createCanvas(800, 1200); // Increased height for debug info
     const context = canvas.getContext('2d');
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Debug: Display raw RSS data on the canvas (to check encoding issues)
+    // Debug: Display raw RSS data (ASCII only)
     context.fillStyle = '#ff0000';
     context.font = '12px sans-serif';
-    context.fillText('Debug Info: Raw RSS Data (truncated):', 20, 20);
-    context.fillText(rssFeed.slice(0, 200) + '...', 20, 40);  // Display the first 200 characters of the RSS feed
+    context.fillText('Debug Info: Raw RSS Data (ASCII only, truncated):', 20, 20);
+    const asciiRssFeed = rssFeed.replace(/[^\x20-\x7E]/g, ''); // ASCII-only version of the feed
+    context.fillText(asciiRssFeed.slice(0, 200) + '...', 20, 40);
 
     // Parse RSS feed
     let parsedFeed;
@@ -32,22 +33,22 @@ export default async (req, res) => {
       return res.send(imageBuffer);
     }
 
-    // Debug: Display parsed JSON structure (after sanitizing special characters)
-    context.fillText('Parsed JSON structure (truncated):', 20, 100);
-    const sanitizedParsedFeed = JSON.stringify(parsedFeed).replace(/[^\x00-\x7F]/g, "");  // Remove non-ASCII characters
-    context.fillText(sanitizedParsedFeed.slice(0, 200) + '...', 20, 120);
+    // Debug: Display parsed JSON structure (ASCII only)
+    context.fillText('Parsed JSON structure (ASCII only, truncated):', 20, 100);
+    const asciiParsedFeed = JSON.stringify(parsedFeed).replace(/[^\x20-\x7E]/g, ''); // ASCII-only
+    context.fillText(asciiParsedFeed.slice(0, 200) + '...', 20, 120);
 
     const feedItems = parsedFeed.rss?.channel[0]?.item?.slice(0, 5).map(item => ({
-      title: item.title[0].replace(/[^\x00-\x7F]/g, ""),  // Remove non-ASCII characters
+      title: item.title[0].replace(/[^\x20-\x7E]/g, ''),  // ASCII-only
       year: new Date(item.pubDate[0]).getFullYear().toString(),
-      description: item.description[0].replace(/[^\x00-\x7F]/g, ""),  // Remove non-ASCII characters
+      description: item.description[0].replace(/[^\x20-\x7E]/g, ''),  // ASCII-only
       pubDate: item.pubDate[0],
     }));
 
     // Debug: Display first item data if available
     if (feedItems && feedItems.length > 0) {
       const firstItem = feedItems[0];
-      context.fillText('First Parsed Item:', 20, 140);
+      context.fillText('First Parsed Item (ASCII only):', 20, 140);
       context.fillText(`Title: ${firstItem.title}`, 20, 160);
       context.fillText(`Year: ${firstItem.year}`, 20, 180);
       context.fillText(`PubDate: ${firstItem.pubDate}`, 20, 200);
@@ -56,7 +57,7 @@ export default async (req, res) => {
       context.fillText('No valid feed items found.', 20, 140);
     }
 
-    // Proceed with the normal rendering if the data is as expected
+    // Normal rendering for verified data with ASCII text only
     let y = 260;
     context.font = '24px sans-serif';
     context.fillStyle = '#333';
@@ -65,7 +66,7 @@ export default async (req, res) => {
     y += 40;
     context.font = '16px sans-serif';
 
-    // Helper function to wrap text
+    // Helper function to wrap ASCII-only text
     function wrapText(context, text, x, y, maxWidth, lineHeight) {
       const words = text.split(' ');
       let line = '';
@@ -87,7 +88,7 @@ export default async (req, res) => {
       return y + lineHeight;
     }
 
-    // Render feed items if parsed correctly
+    // Render feed items (ASCII-only data)
     feedItems.forEach(item => {
       context.fillStyle = '#000000';
       context.font = 'bold 18px sans-serif';
