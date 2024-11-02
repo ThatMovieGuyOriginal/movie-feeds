@@ -44,7 +44,7 @@ module.exports = async (req, res) => {
 
     const movies = [];
     fs.createReadStream(csvFilePath)
-      .pipe(csvParser({ quote: '"', escape: '"' })) // Configure csv-parser to handle quotes
+      .pipe(csvParser({ quote: '"', escape: '"', relax: true }))
       .on('data', (row) => {
         if (row.title && row.tmdb_id) {
           movies.push({
