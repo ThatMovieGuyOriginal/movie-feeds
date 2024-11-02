@@ -104,19 +104,25 @@ export default async function handler(req, res) {
     }
 
     const purchase = snapshot.docs[0].data();
-    const { product_id } = purchase;
+    const { product_id, type } = purchase;
 
     // Check if the token has expired (optional)
     if (purchase.expirationDate && new Date() > purchase.expirationDate.toDate()) {
       return res.status(403).json({ error: 'Token expired' });
     }
 
-    // Path to the corresponding CSV file based on product_id
-    const csvFilePath = path.join(__dirname, '../../movies', `${product_id}.csv`);
+    // Retrieve the feed metadata from Firestore based on product_id
+    const feedSnapshot = await db.collection('feeds').doc(product_id).get();
+
+    if (!feedSnapshot.exists) {
+      return res.status(404).json({ error: 'Feed not found' });
+    }
+
+    const { csv_file_path, title, description } = feedSnapshot.data();
     const api_key = process.env.TMDB_API_KEY; // TMDB API key stored in environment variables
 
     // Generate RSS feed content from the CSV
-    const rssContent = await generateRssFeedFromCsv(csvFilePath, api_key);
+    const rssContent = await generateRssFeedFromCsv(csv_file_path, api_key);
 
     // Set content type for RSS and return the RSS feed
     res.setHeader('Content-Type', 'application/rss+xml');
