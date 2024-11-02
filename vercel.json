@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/latest-discovery-image.js": {
+    "api/free-daily-discovery.js": {
       "memory": 1024,
       "maxDuration": 10
     }
