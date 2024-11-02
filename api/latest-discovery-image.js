@@ -1,35 +1,39 @@
 import chrome from 'chrome-aws-lambda';
 import puppeteer from 'puppeteer-core';
+import { parseStringPromise } from 'xml2js';
 
 export default async (req, res) => {
   try {
-    // Fetch the RSS feed
+    // Step 1: Fetch RSS Feed
     const feedUrl = 'https://thatmovieguy.vercel.app/api/dailydiscovery';
     const response = await fetch(feedUrl);
     const rssFeed = await response.text();
+    console.log("RSS Feed fetched successfully.");
 
-    // Parse the RSS feed (a simple way to extract data here; adapt as needed)
-    // For a real-world application, you'd use a proper XML parser, but for simplicity:
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(rssFeed, "text/xml");
-    const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 5); // Limit to 5 items
+    // Step 2: Parse RSS Feed
+    const parsedFeed = await parseStringPromise(rssFeed);
+    console.log("RSS Feed parsed successfully.");
 
-    const feedItems = items.map(item => ({
-      title: item.querySelector("title").textContent,
-      description: item.querySelector("description").textContent,
-      link: item.querySelector("link").textContent,
-      pubDate: item.querySelector("pubDate").textContent
+    // Step 3: Extract relevant items
+    const feedItems = parsedFeed.rss.channel[0].item.slice(0, 5).map(item => ({
+      title: item.title[0],
+      description: item.description[0],
+      link: item.link[0],
+      pubDate: item.pubDate[0]
     }));
+    console.log("Feed items extracted:", feedItems);
 
-    // Launch Puppeteer to render the HTML
+    // Step 4: Launch Puppeteer to render HTML
     const browser = await puppeteer.launch({
-      args: chrome.args,
+      args: [...chrome.args, '--no-sandbox', '--disable-setuid-sandbox'],
       executablePath: await chrome.executablePath,
-      headless: chrome.headless,
+      headless: true,
     });
+    console.log("Puppeteer launched.");
+
     const page = await browser.newPage();
 
-    // Generate HTML for the feed items
+    // Step 5: Generate HTML Content
     const htmlContent = `
       <html>
         <head>
@@ -53,19 +57,21 @@ export default async (req, res) => {
         </body>
       </html>
     `;
-
     await page.setContent(htmlContent);
+    console.log("HTML content set in Puppeteer.");
+
+    // Step 6: Capture screenshot
     const imageBuffer = await page.screenshot({ type: 'png' });
-
     await browser.close();
+    console.log("Screenshot captured successfully.");
 
-    // Send the image buffer as the response
+    // Step 7: Send the image buffer as response
     res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'no-store'); // Prevent caching to ensure it's always fresh
+    res.setHeader('Cache-Control', 'no-store');
     res.send(imageBuffer);
 
   } catch (error) {
-    console.error(error);
+    console.error("Error generating image:", error);
     res.status(500).send('Error generating image');
   }
 };
