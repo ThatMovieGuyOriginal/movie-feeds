@@ -16,7 +16,7 @@ const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w200';
 
 async function fetchMoviePosterUrl(tmdbId) {
-  const url = https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US;
+  const url = 'https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US';
   const response = await fetch(url);
   const data = await response.json();
   return data.poster_path ? ${TMDB_IMAGE_BASE_URL}${data.poster_path} : null;
