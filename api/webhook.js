@@ -2,10 +2,9 @@
 import db from '../../config/firebaseAdmin';
 import { v4 as uuidv4 } from 'uuid';
 
-const SECRET_TOKEN = process.env.WEBHOOK_SECRET; // Set this in your Vercel environment variables
+const SECRET_TOKEN = process.env.WEBHOOK_SECRET; // Secure secret
 
 export default async function handler(req, res) {
-  // Verify the secret token
   if (req.query.secret !== SECRET_TOKEN) {
     return res.status(403).json({ error: 'Forbidden' });
   }
@@ -14,23 +13,32 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // Extract necessary data from the request payload
-  const { email, product_id } = req.body; // Assume BMC sends these fields in the webhook payload
+  const { email, product_id, event_type } = req.body; // Assuming BMC sends these fields
 
   // Generate a unique token for the user
   const token = uuidv4();
+  let type, expirationDate = null;
 
   try {
+    if (event_type === 'Extras purchased') {
+      type = 'genre';
+    } else if (event_type === 'Support created') {
+      type = 'support';
+    } else if (event_type === 'Membership started') {
+      type = 'membership';
+      expirationDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days, adjust if needed
+    }
+
     // Save the purchase data in Firestore
     await db.collection('purchases').add({
       email,
       product_id,
+      type,
       token,
       createdAt: new Date(),
-      expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      expirationDate,
     });
 
-    // Send back a success response with the unique RSS feed URL
     res.status(200).json({ success: true, url: `/api/rss/${token}` });
   } catch (error) {
     console.error('Error saving to Firestore:', error);
