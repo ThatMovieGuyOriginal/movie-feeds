@@ -5,50 +5,65 @@ import { parseStringPromise } from 'xml2js';
 export default async (req, res) => {
   try {
     const feedUrl = 'https://thatmovieguy.vercel.app/api/dailydiscovery';
-    const response = await fetch(feedUrl);
+    const response = await fetch(feedUrl, { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
     const rssFeed = await response.text();
 
-    // Parse RSS feed
-    const parsedFeed = await parseStringPromise(rssFeed);
-    const feedItems = parsedFeed.rss.channel[0].item.slice(0, 5).map(item => ({
-      title: item.title[0],
-      year: new Date(item.pubDate[0]).getFullYear().toString(),
-      description: item.description[0],
-      pubDate: item.pubDate[0],
-    }));
-
     // Set up canvas
-    const canvas = createCanvas(800, 600);
+    const canvas = createCanvas(800, 1200);  // Increased height for debug info
     const context = canvas.getContext('2d');
-
-    // Background color
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Debug text for data fetching and parsing
+    // Debug: Display raw RSS data on the canvas (to check encoding issues)
     context.fillStyle = '#ff0000';
-    context.font = '16px Arial, sans-serif';
-    context.fillText('Debug Info: Data fetched and parsed successfully', 20, 20);
-    context.fillText(`Total items: ${feedItems.length}`, 20, 40);
+    context.font = '12px Arial, sans-serif';
+    context.fillText('Debug Info: Raw RSS Data (truncated):', 20, 20);
+    context.fillText(rssFeed.slice(0, 200) + '...', 20, 40);  // Display the first 200 characters of the RSS feed
 
-    // Display raw data for the first movie item to check parsing
-    if (feedItems.length > 0) {
-      const firstItem = feedItems[0];
-      context.fillText(`First Item Title: ${firstItem.title}`, 20, 60);
-      context.fillText(`First Item Year: ${firstItem.year}`, 20, 80);
-      context.fillText(`First Item PubDate: ${firstItem.pubDate}`, 20, 100);
-      context.fillText(`First Item Description: ${firstItem.description.slice(0, 50)}...`, 20, 120);
-    } else {
-      context.fillText('No items found in the feed.', 20, 60);
+    // Parse RSS feed
+    let parsedFeed;
+    try {
+      parsedFeed = await parseStringPromise(rssFeed);
+    } catch (parseError) {
+      context.fillText('Parsing Error:', 20, 60);
+      context.fillText(parseError.toString(), 20, 80);
+      const imageBuffer = canvas.toBuffer('image/png');
+      res.setHeader('Content-Type', 'image/png');
+      return res.send(imageBuffer);
     }
 
-    // Title for the entire image
-    context.fillStyle = '#333';
-    context.font = '24px Arial, sans-serif';
-    context.fillText('Daily Movie Recommendations', 20, 160);
+    // Debug: Display parsed JSON structure (after sanitizing special characters)
+    context.fillText('Parsed JSON structure (truncated):', 20, 100);
+    const sanitizedParsedFeed = JSON.stringify(parsedFeed).replace(/[^\x00-\x7F]/g, "");  // Remove non-ASCII characters
+    context.fillText(sanitizedParsedFeed.slice(0, 200) + '...', 20, 120);
 
-    // Adjust starting position for movie items
-    let y = 200;
+    const feedItems = parsedFeed.rss?.channel[0]?.item?.slice(0, 5).map(item => ({
+      title: item.title[0].replace(/[^\x00-\x7F]/g, ""),  // Remove non-ASCII characters
+      year: new Date(item.pubDate[0]).getFullYear().toString(),
+      description: item.description[0].replace(/[^\x00-\x7F]/g, ""),  // Remove non-ASCII characters
+      pubDate: item.pubDate[0],
+    }));
+
+    // Debug: Display first item data if available
+    if (feedItems && feedItems.length > 0) {
+      const firstItem = feedItems[0];
+      context.fillText('First Parsed Item:', 20, 140);
+      context.fillText(`Title: ${firstItem.title}`, 20, 160);
+      context.fillText(`Year: ${firstItem.year}`, 20, 180);
+      context.fillText(`PubDate: ${firstItem.pubDate}`, 20, 200);
+      context.fillText(`Description: ${firstItem.description.slice(0, 50)}...`, 20, 220);
+    } else {
+      context.fillText('No valid feed items found.', 20, 140);
+    }
+
+    // Proceed with the normal rendering if the data is as expected
+    let y = 260;
+    context.font = '24px Arial, sans-serif';
+    context.fillStyle = '#333';
+    context.fillText('Daily Movie Recommendations', 20, y);
+
+    y += 40;
+    context.font = '16px Arial, sans-serif';
 
     // Helper function to wrap text
     function wrapText(context, text, x, y, maxWidth, lineHeight) {
@@ -72,31 +87,27 @@ export default async (req, res) => {
       return y + lineHeight;
     }
 
-    // Loop through the feed items and add each to the canvas
+    // Render feed items if parsed correctly
     feedItems.forEach(item => {
-      // Title
       context.fillStyle = '#000000';
       context.font = 'bold 18px Arial, sans-serif';
       wrapText(context, item.title, 20, y, 760, 24);
       y += 30;
 
-      // Year
       context.fillStyle = '#555555';
       context.font = 'italic 14px Arial, sans-serif';
       context.fillText(`Year: ${item.year}`, 20, y);
       y += 20;
 
-      // Description
       context.fillStyle = '#333333';
       context.font = '16px Arial, sans-serif';
       const description = item.description.length > 100 ? item.description.slice(0, 100) + '...' : item.description;
       y = wrapText(context, description, 20, y, 760, 20);
 
-      // Publication Date
       context.fillStyle = '#666666';
       context.font = 'italic 14px Arial, sans-serif';
       context.fillText(item.pubDate, 20, y);
-      y += 40;  // Add spacing before the next item
+      y += 40;
     });
 
     const imageBuffer = canvas.toBuffer('image/png');
