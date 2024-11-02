@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/latest-discovery-image.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  }
+}
