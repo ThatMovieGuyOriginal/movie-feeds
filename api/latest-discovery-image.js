@@ -1,6 +1,10 @@
-import { createCanvas } from 'canvas';
+import { createCanvas, registerFont } from 'canvas';
 import fetch from 'node-fetch';
 import { parseStringPromise } from 'xml2js';
+import path from 'path';
+
+// Register the custom font
+registerFont(path.join(__dirname, '../fonts/Roboto-Regular.ttf'), { family: 'Roboto' });
 
 export default async (req, res) => {
   try {
@@ -35,7 +39,8 @@ export default async (req, res) => {
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.font = '16px Arial';  // Use Arial or another well-supported font
+    // Use the custom font registered earlier
+    context.font = '16px Roboto';
 
     // Render the parsed data on canvas
     let y = 40;
@@ -59,7 +64,7 @@ export default async (req, res) => {
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = '#ff0000';
-    context.font = '16px Arial';  // Use a specific, common font
+    context.font = '16px Roboto';  // Use the custom font in the error message too
     context.fillText('Error generating image:', 20, 20);
     context.fillText(error.toString(), 20, 40);
     const imageBuffer = canvas.toBuffer('image/png');
