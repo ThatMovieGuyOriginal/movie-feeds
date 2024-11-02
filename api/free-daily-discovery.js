@@ -64,7 +64,7 @@ export default async (req, res) => {
     const posterWidth = 100;
     const posterHeight = posterWidth * 1.5; // Keep aspect ratio
     const posterMargin = 20;
-    const itemSpacing = 30; // Increased spacing between items
+    const itemSpacing = 10; // Increased spacing between items
     let estimatedHeight = margin;
 
     // Create a temporary canvas context to measure text height
@@ -142,7 +142,7 @@ export default async (req, res) => {
       context.fillStyle = '#333333';
       y = wrapText(context, `${description}`, textX, posterY + 80, 760 - posterWidth - posterMargin, 20); // Description starts below year
 
-      y += posterHeight + 1; // Add space before the next item starts
+      y += posterHeight + itemSpacing; // Add space before the next item starts
     }
 
     const imageBuffer = canvas.toBuffer('image/png');
