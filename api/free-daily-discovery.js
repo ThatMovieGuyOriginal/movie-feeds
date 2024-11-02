@@ -66,26 +66,31 @@ export default async (req, res) => {
     const posterMargin = 20;
     let estimatedHeight = margin;
 
-    // Create a temporary canvas context to measure text height
-    const tempCanvas = createCanvas(800, 100);
-    const tempContext = tempCanvas.getContext('2d');
-    tempContext.font = '16px Roboto';
-
+    // Set up dynamic height calculation
+    const margin = 40;
+    const lineHeight = 25;
+    const titleHeight = 30;
+    const posterWidth = 100;
+    const posterHeight = posterWidth * 1.5; // Keep aspect ratio
+    const posterMargin = 20;
+    const itemSpacing = 20; // Add space between items
+    let estimatedHeight = margin;
+    
     // Calculate the exact height needed for each feed item
     estimatedHeight += 40; // Space for the header
     feedItems.forEach(item => {
       estimatedHeight += posterHeight; // Poster height
-
+    
       // Calculate description height based on wrapping
       const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
       const words = description.split(' ');
       let line = '';
       let linesNeeded = 1;
-
+    
       words.forEach(word => {
         const testLine = line + word + ' ';
         const testWidth = tempContext.measureText(testLine).width;
-
+    
         if (testWidth > (800 - posterWidth - posterMargin * 2) && line.length > 0) {
           linesNeeded += 1;
           line = word + ' ';
@@ -93,11 +98,11 @@ export default async (req, res) => {
           line = testLine;
         }
       });
-
+    
       estimatedHeight += linesNeeded * lineHeight; // Height for wrapped description lines
-      estimatedHeight += 20; // Space after each item
+      estimatedHeight += itemSpacing; // Space after each item
     });
-
+    
     // Generate the image with precise dynamic height
     const canvas = createCanvas(800, estimatedHeight);
     const context = canvas.getContext('2d');
@@ -116,7 +121,7 @@ export default async (req, res) => {
     // Render feed items with posters
     for (const item of feedItems) {
       let posterY = y; // Fixed starting position for each item
-
+    
       // Load the poster image if available
       if (item.posterUrl) {
         try {
@@ -126,7 +131,7 @@ export default async (req, res) => {
           console.error(`Error loading poster for ${item.title}:`, err);
         }
       }
-
+    
       // Title and Year beside the poster, aligned with the top of the poster
       const textX = 20 + posterWidth + posterMargin;  // Position text beside the poster
       context.font = 'bold 18px Roboto';
@@ -135,13 +140,13 @@ export default async (req, res) => {
       context.font = '16px Roboto';
       context.fillStyle = '#555555';
       context.fillText(`(${item.year})`, textX, posterY + 50); // Year positioned slightly below title
-
+    
       // Description beside the poster, wrapped and aligned beneath the title and year
       const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
       context.fillStyle = '#333333';
       y = wrapText(context, `${description}`, textX, posterY + 80, 760 - posterWidth - posterMargin, 20); // Description starts below year
-
-      y += 20; // Add space before the next item starts
+    
+      y += itemSpacing; // Add space before the next item starts
     }
 
     // Helper function to wrap text
