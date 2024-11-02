@@ -63,6 +63,7 @@ export default async (req, res) => {
     const titleHeight = 30;
     const itemSpacing = 80; // Increased spacing for poster
     const posterWidth = 100;
+    const posterHeight = posterWidth * 1.5; // Keep aspect ratio
     const posterMargin = 20;
     let estimatedHeight = margin;
 
@@ -74,27 +75,7 @@ export default async (req, res) => {
     // Estimate required height based on text and poster
     estimatedHeight += 40; // Space for the header
     feedItems.forEach(item => {
-      estimatedHeight += titleHeight + lineHeight;
-
-      const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
-      const words = description.split(' ');
-      let line = '';
-      let linesNeeded = 1;
-
-      words.forEach(word => {
-        const testLine = line + word + ' ';
-        const testWidth = tempContext.measureText(testLine).width;
-
-        if (testWidth > (800 - posterWidth - posterMargin * 2) && line.length > 0) {
-          linesNeeded += 1;
-          line = word + ' ';
-        } else {
-          line = testLine;
-        }
-      });
-
-      estimatedHeight += linesNeeded * lineHeight;
-      estimatedHeight += itemSpacing;
+      estimatedHeight += posterHeight + itemSpacing; // Poster height and space between items
     });
 
     // Generate the image with dynamic height
@@ -112,35 +93,35 @@ export default async (req, res) => {
     context.fillText("Free Daily Discovery", 20, y);
     y += 40;
 
-    // Render feed items with posters
+    // Render feed items with aligned titles
     for (const item of feedItems) {
+      let posterY = y; // Fixed starting position for each item
+
       // Load the poster image if available
       if (item.posterUrl) {
         try {
           const poster = await loadImage(item.posterUrl);
-          context.drawImage(poster, 20, y, posterWidth, posterWidth * 1.5); // Aspect ratio for poster
+          context.drawImage(poster, 20, posterY, posterWidth, posterHeight); // Draw poster
         } catch (err) {
           console.error(`Error loading poster for ${item.title}:`, err);
         }
       }
 
-      // Title and Year beside the poster
+      // Title and year beside the poster, aligned with the top of the poster
+      const textX = 20 + posterWidth + posterMargin;  // Position text beside the poster
       context.font = 'bold 18px Roboto';
       context.fillStyle = '#000000';
-      context.fillText(`${item.title}`, 20 + posterWidth + posterMargin, y);
-      y += 30;
-
+      context.fillText(`${item.title}`, textX, posterY + 20); // Align title with top of poster
       context.font = '16px Roboto';
       context.fillStyle = '#555555';
-      context.fillText(`(${item.year})`, 20 + posterWidth + posterMargin, y);
-      y += 25;
+      context.fillText(`(${item.year})`, textX, posterY + 50); // Year positioned slightly below title
 
-      // Description beside the poster, wrapped and truncated if too long
+      // Description beside the poster, wrapped and aligned beneath the title and year
       const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
       context.fillStyle = '#333333';
-      y = wrapText(context, `${description}`, 20 + posterWidth + posterMargin, y, 760 - posterWidth - posterMargin, 20);
+      y = wrapText(context, `${description}`, textX, posterY + 80, 760 - posterWidth - posterMargin, 20); // Description starts below year
 
-      y += itemSpacing;
+      y += itemSpacing; // Move y down for the next item
     }
 
     // Helper function to wrap text
