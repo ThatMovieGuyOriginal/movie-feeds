@@ -38,8 +38,47 @@ export default async (req, res) => {
 
     console.log("Feed items parsed for rendering:", feedItems);
 
-    // Generate the image
-    const canvas = createCanvas(800, 1200);
+    // Set up dynamic height calculation
+    const margin = 40;            // Space at the top and bottom
+    const lineHeight = 25;        // Height for regular lines
+    const titleHeight = 30;       // Height for titles
+    const itemSpacing = 40;       // Space between items
+    let estimatedHeight = margin; // Start with a margin at the top
+
+    // Create a temporary canvas context to measure text height
+    const tempCanvas = createCanvas(800, 100);
+    const tempContext = tempCanvas.getContext('2d');
+    tempContext.font = '16px Roboto';
+
+    // Estimate required height based on text
+    estimatedHeight += 40; // Space for the header
+    feedItems.forEach(item => {
+      estimatedHeight += titleHeight + lineHeight; // Title and year lines
+
+      // Measure description text for wrapping
+      const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
+      const words = description.split(' ');
+      let line = '';
+      let linesNeeded = 1;
+
+      words.forEach(word => {
+        const testLine = line + word + ' ';
+        const testWidth = tempContext.measureText(testLine).width;
+
+        if (testWidth > 760 && line.length > 0) {
+          linesNeeded += 1;
+          line = word + ' ';
+        } else {
+          line = testLine;
+        }
+      });
+
+      estimatedHeight += linesNeeded * lineHeight; // Height for wrapped description
+      estimatedHeight += itemSpacing; // Space between items
+    });
+
+    // Generate the image with dynamic height
+    const canvas = createCanvas(800, estimatedHeight);
     const context = canvas.getContext('2d');
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
@@ -49,7 +88,7 @@ export default async (req, res) => {
     context.font = 'bold 20px Roboto';  // Bold font for headers
 
     // Render header
-    let y = 40;
+    let y = margin;
     context.fillText("Free Daily Discovery", 20, y);
     y += 40;
 
@@ -73,7 +112,7 @@ export default async (req, res) => {
       y = wrapText(context, `${description}`, 20, y, 760, 20);
 
       // Add spacing between items
-      y += 40;
+      y += itemSpacing;
     });
 
     // Helper function to wrap text
