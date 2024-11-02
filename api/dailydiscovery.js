@@ -40,19 +40,17 @@ module.exports = async (req, res) => {
       return;
     }
 
-    // Update headers to prevent caching and force refresh in Vercel environments
     res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
 
     const movies = [];
-    fs.createReadStream(csvFilePath) // Removed `?t=${fileTimestamp}`
+    fs.createReadStream(csvFilePath)
       .pipe(csvParser())
       .on('data', (row) => {
-        // Validate and push each row into movies array if it has essential fields
         if (row.title && row.tmdb_id) {
           movies.push({
             title: row.title,
-            year: row.year || "Unknown Year", // Fallback for missing year
+            year: row.year || "Unknown Year",
             imdb_id: row.imdb_id,
             tmdb_id: row.tmdb_id,
             released: row.released || "Release date unknown",
@@ -60,22 +58,22 @@ module.exports = async (req, res) => {
           });
         }
       })
-      .on('end', () => {
-        // Generate RSS feed if there are movies in the list
+      .on('end', async () => {
         if (movies.length > 0) {
           let rssFeed = `<?xml version="1.0" encoding="UTF-8"?>
-        <rss version="2.0">
-          <channel>
-            <title>Daily Discovery</title>
-            <description>Daily movie recommendations, streamlined for Radarr. No contracts. No costs. Ever.</description>`;
-        
-          movies.forEach(movie => {
+          <rss version="2.0">
+            <channel>
+              <title>Daily Discovery</title>
+              <description>Daily movie recommendations, streamlined for Radarr. No contracts. No costs. Ever.</description>`;
+
+          // Use for...of loop to support async/await within the loop
+          for (const movie of movies) {
             const releaseDate = new Date(movie.released);
             const pubDate = isNaN(releaseDate.getTime()) ? "Unknown Date" : releaseDate.toUTCString();
-
+            
             // Fetch the description using TMDB API
             const description = await fetchMovieDescription(movie.tmdb_id, api_key);
-      
+            
             rssFeed += `
             <item>
               <title>${escapeXml(movie.title)}</title>
@@ -84,11 +82,11 @@ module.exports = async (req, res) => {
               <description>${escapeXml(description)}</description>
             </item>`;
           }
-        
+
           rssFeed += `
-          </channel>
-        </rss>`;
-        
+            </channel>
+          </rss>`;
+
           res.setHeader('Content-Type', 'application/rss+xml');
           res.send(rssFeed.trim());
         } else {
