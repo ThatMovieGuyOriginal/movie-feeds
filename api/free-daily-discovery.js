@@ -123,7 +123,7 @@ module.exports = async (req, res) => {
           const poster = await loadImage(item.posterUrl);
           context.drawImage(poster, 20, posterY, posterWidth, posterHeight); // Draw poster
         } catch (err) {
-          console.error(Error loading poster for ${item.title}:, err);
+          console.error(`Error loading poster for ${item.title}:`, err);
         }
       }
 
