@@ -1,4 +1,4 @@
-import chrome from 'chrome-aws-lambda';
+import chromium from '@sparticuz/chromium';
 import puppeteer from 'puppeteer-core';
 import { parseStringPromise } from 'xml2js';
 
@@ -19,15 +19,13 @@ export default async (req, res) => {
     }));
     console.log("Feed items extracted:", feedItems);
 
-    // Launch Puppeteer with chrome-aws-lambda for Vercel environment
+    // Launch Puppeteer using @sparticuz/chromium for Vercel environment
     const browser = await puppeteer.launch({
-      args: chrome.args,
-      executablePath: await chrome.executablePath,
-      headless: chrome.headless,
+      args: chromium.args,
+      executablePath: await chromium.executablePath,
+      headless: chromium.headless,
     });
     console.log("Puppeteer launched.");
-
-
 
     const page = await browser.newPage();
 
