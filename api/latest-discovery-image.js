@@ -1,17 +1,20 @@
+import { createCanvas } from 'canvas';
+import fetch from 'node-fetch';
+import { parseStringPromise } from 'xml2js';
+
 export default async (req, res) => {
   try {
-    console.log("Fetching RSS feed...");
     const feedUrl = 'https://thatmovieguy.vercel.app/api/dailydiscovery';
     const response = await fetch(feedUrl, { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
     const rssFeed = await response.text();
-    
-    console.log("RSS feed fetched:", rssFeed.slice(0, 200));  // Log the first part of the feed
 
-    // Parsing RSS feed
+    console.log("RSS feed fetched:", rssFeed.slice(0, 200));
+
+    // Parse RSS feed
     let parsedFeed;
     try {
       parsedFeed = await parseStringPromise(rssFeed);
-      console.log("Parsed feed structure:", JSON.stringify(parsedFeed).slice(0, 200));  // Log parsed data
+      console.log("Parsed feed structure:", JSON.stringify(parsedFeed).slice(0, 200));
     } catch (parseError) {
       console.error("Error parsing feed:", parseError);
       throw parseError;
