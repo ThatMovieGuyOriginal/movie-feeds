@@ -61,7 +61,6 @@ export default async (req, res) => {
     const margin = 40;
     const lineHeight = 25;
     const titleHeight = 30;
-    const itemSpacing = 80; // Increased spacing for poster
     const posterWidth = 100;
     const posterHeight = posterWidth * 1.5; // Keep aspect ratio
     const posterMargin = 20;
@@ -72,13 +71,34 @@ export default async (req, res) => {
     const tempContext = tempCanvas.getContext('2d');
     tempContext.font = '16px Roboto';
 
-    // Estimate required height based on text and poster
+    // Calculate the exact height needed for each feed item
     estimatedHeight += 40; // Space for the header
     feedItems.forEach(item => {
-      estimatedHeight += posterHeight + itemSpacing; // Poster height and space between items
+      estimatedHeight += posterHeight; // Poster height
+
+      // Calculate description height based on wrapping
+      const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
+      const words = description.split(' ');
+      let line = '';
+      let linesNeeded = 1;
+
+      words.forEach(word => {
+        const testLine = line + word + ' ';
+        const testWidth = tempContext.measureText(testLine).width;
+
+        if (testWidth > (800 - posterWidth - posterMargin * 2) && line.length > 0) {
+          linesNeeded += 1;
+          line = word + ' ';
+        } else {
+          line = testLine;
+        }
+      });
+
+      estimatedHeight += linesNeeded * lineHeight; // Height for wrapped description lines
+      estimatedHeight += 20; // Space after each item
     });
 
-    // Generate the image with dynamic height
+    // Generate the image with precise dynamic height
     const canvas = createCanvas(800, estimatedHeight);
     const context = canvas.getContext('2d');
     context.fillStyle = '#ffffff';
@@ -93,7 +113,7 @@ export default async (req, res) => {
     context.fillText("Free Daily Discovery", 20, y);
     y += 40;
 
-    // Render feed items with aligned titles
+    // Render feed items with posters
     for (const item of feedItems) {
       let posterY = y; // Fixed starting position for each item
 
@@ -107,7 +127,7 @@ export default async (req, res) => {
         }
       }
 
-      // Title and year beside the poster, aligned with the top of the poster
+      // Title and Year beside the poster, aligned with the top of the poster
       const textX = 20 + posterWidth + posterMargin;  // Position text beside the poster
       context.font = 'bold 18px Roboto';
       context.fillStyle = '#000000';
@@ -121,7 +141,7 @@ export default async (req, res) => {
       context.fillStyle = '#333333';
       y = wrapText(context, `${description}`, textX, posterY + 80, 760 - posterWidth - posterMargin, 20); // Description starts below year
 
-      y += itemSpacing; // Move y down for the next item
+      y += 20; // Add space before the next item starts
     }
 
     // Helper function to wrap text
