@@ -24,7 +24,7 @@ async function fetchMoviePosterUrl(tmdbId) {
 
 export default async (req, res) => {
   try {
-    const feedUrl = 'https://thatmovieguy.vercel.app/api/dailydiscovery';
+    const feedUrl = 'https://thatmovieguy.vercel.app/api/rss-daily-discovery';
     const response = await fetch(feedUrl, { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
     const rssFeed = await response.text();
 
