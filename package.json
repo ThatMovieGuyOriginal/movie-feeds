@@ -6,6 +6,6 @@
     "csv-parser": "^3.0.0",
     "chrome-aws-lambda": "^10.1.0",
     "puppeteer-core": "^10.1.0",
-    "xml2js": "^0.4.23" // Optional: For parsing XML if needed
+    "xml2js": "^0.4.23"
   }
 }
