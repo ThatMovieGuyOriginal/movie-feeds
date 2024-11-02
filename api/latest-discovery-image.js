@@ -44,26 +44,59 @@ export default async (req, res) => {
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Set text properties and add a red border around the canvas for visibility
-    context.strokeStyle = '#FF0000';
-    context.lineWidth = 2;
-    context.strokeRect(0, 0, canvas.width, canvas.height);
+    // Set text properties
+    context.fillStyle = '#333333'; // Dark text color
+    context.font = 'bold 20px Roboto';  // Bold font for headers
 
-    context.fillStyle = '#000000';  // Set text color to black for visibility
-    context.font = '24px Roboto, Arial';  // Larger font size and fallback
-
-    // Render the parsed data on canvas
+    // Render header
     let y = 40;
-    context.fillText("Debug Info: Feed Items", 20, y);
-    context.fillText("Test Text", 20, 60); // Simple test text at a fixed position
+    context.fillText("Daily Movie Recommendations", 20, y);
+    y += 40;
 
+    // Render feed items
     feedItems.forEach((item, index) => {
-      y += 40;
-      context.fillText(`Item ${index + 1}: Title - ${item.title}`, 20, y);
-      y += 20;
-      context.fillText(`Year - ${item.year}, PubDate - ${item.pubDate}`, 20, y);
+      // Title in bold
+      context.font = 'bold 18px Roboto';
+      context.fillStyle = '#000000';
+      context.fillText(`Title: ${item.title}`, 20, y);
+      y += 30;
+
+      // Year and pubDate in regular font
+      context.font = '16px Roboto';
+      context.fillStyle = '#555555';
+      context.fillText(`Year: ${item.year} | Published: ${item.pubDate}`, 20, y);
+      y += 25;
+
+      // Description, truncated if too long
+      const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
+      context.fillStyle = '#333333';
+      y = wrapText(context, `Description: ${description}`, 20, y, 760, 20);
+
+      // Add spacing between items
       y += 40;
     });
+
+    // Helper function to wrap text
+    function wrapText(context, text, x, y, maxWidth, lineHeight) {
+      const words = text.split(' ');
+      let line = '';
+      
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = context.measureText(testLine);
+        const testWidth = metrics.width;
+
+        if (testWidth > maxWidth && n > 0) {
+          context.fillText(line, x, y);
+          line = words[n] + ' ';
+          y += lineHeight;
+        } else {
+          line = testLine;
+        }
+      }
+      context.fillText(line, x, y);
+      return y + lineHeight;
+    }
 
     const imageBuffer = canvas.toBuffer('image/png');
     res.setHeader('Content-Type', 'image/png');
