@@ -16,7 +16,7 @@ export default async (req, res) => {
 
     // Debug: Display raw RSS data on the canvas (to check encoding issues)
     context.fillStyle = '#ff0000';
-    context.font = '12px Arial, sans-serif';
+    context.font = '12px sans-serif';
     context.fillText('Debug Info: Raw RSS Data (truncated):', 20, 20);
     context.fillText(rssFeed.slice(0, 200) + '...', 20, 40);  // Display the first 200 characters of the RSS feed
 
@@ -58,12 +58,12 @@ export default async (req, res) => {
 
     // Proceed with the normal rendering if the data is as expected
     let y = 260;
-    context.font = '24px Arial, sans-serif';
+    context.font = '24px sans-serif';
     context.fillStyle = '#333';
     context.fillText('Daily Movie Recommendations', 20, y);
 
     y += 40;
-    context.font = '16px Arial, sans-serif';
+    context.font = '16px sans-serif';
 
     // Helper function to wrap text
     function wrapText(context, text, x, y, maxWidth, lineHeight) {
@@ -90,22 +90,22 @@ export default async (req, res) => {
     // Render feed items if parsed correctly
     feedItems.forEach(item => {
       context.fillStyle = '#000000';
-      context.font = 'bold 18px Arial, sans-serif';
+      context.font = 'bold 18px sans-serif';
       wrapText(context, item.title, 20, y, 760, 24);
       y += 30;
 
       context.fillStyle = '#555555';
-      context.font = 'italic 14px Arial, sans-serif';
+      context.font = 'italic 14px sans-serif';
       context.fillText(`Year: ${item.year}`, 20, y);
       y += 20;
 
       context.fillStyle = '#333333';
-      context.font = '16px Arial, sans-serif';
+      context.font = '16px sans-serif';
       const description = item.description.length > 100 ? item.description.slice(0, 100) + '...' : item.description;
       y = wrapText(context, description, 20, y, 760, 20);
 
       context.fillStyle = '#666666';
-      context.font = 'italic 14px Arial, sans-serif';
+      context.font = 'italic 14px sans-serif';
       context.fillText(item.pubDate, 20, y);
       y += 40;
     });
@@ -120,7 +120,7 @@ export default async (req, res) => {
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = '#ff0000';
-    context.font = '16px Arial, sans-serif';
+    context.font = '16px sans-serif';
     context.fillText('Error generating image:', 20, 20);
     context.fillText(error.toString(), 20, 40);
     const imageBuffer = canvas.toBuffer('image/png');
