@@ -50,7 +50,7 @@ export default async (req, res) => {
 
     // Render header
     let y = 40;
-    context.fillText("Daily Movie Recommendations", 20, y);
+    context.fillText("Free Daily Discovery", 20, y);
     y += 40;
 
     // Render feed items
@@ -58,19 +58,19 @@ export default async (req, res) => {
       // Title in bold
       context.font = 'bold 18px Roboto';
       context.fillStyle = '#000000';
-      context.fillText(`Title: ${item.title}`, 20, y);
+      context.fillText(`${item.title}`, 20, y);
       y += 30;
 
       // Year and pubDate in regular font
       context.font = '16px Roboto';
       context.fillStyle = '#555555';
-      context.fillText(`Year: ${item.year} | Published: ${item.pubDate}`, 20, y);
+      context.fillText(`(${item.year})`, 20, y);
       y += 25;
 
       // Description, truncated if too long
       const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
       context.fillStyle = '#333333';
-      y = wrapText(context, `Description: ${description}`, 20, y, 760, 20);
+      y = wrapText(context, `${description}`, 20, y, 760, 20);
 
       // Add spacing between items
       y += 40;
