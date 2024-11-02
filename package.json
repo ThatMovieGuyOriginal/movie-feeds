@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "api/dailydiscovery.js",
   "dependencies": {
-    "csv-parser": "^3.0.0"
+    "csv-parser": "^3.0.0",
+    "node-fetch": "^2.6.1" // Use this version for compatibility with CommonJS
   }
 }
