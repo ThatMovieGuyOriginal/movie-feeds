@@ -1,7 +1,6 @@
 const csvParser = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
-const fetch = require('node-fetch');
 
 // Helper function to escape XML special characters
 function escapeXml(unsafe) {
