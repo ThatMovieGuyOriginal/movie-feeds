@@ -142,7 +142,7 @@ export default async (req, res) => {
       context.fillStyle = '#333333';
       y = wrapText(context, `${description}`, textX, posterY + 80, 760 - posterWidth - posterMargin, 20); // Description starts below year
 
-      y += posterHeight + 50; // Add space before the next item starts
+      y += posterHeight + 10; // Add space before the next item starts
     }
 
     const imageBuffer = canvas.toBuffer('image/png');
