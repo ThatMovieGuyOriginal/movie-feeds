@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
 
     // Parse RSS feed
     let parsedFeed;
-    tr {
+    try {
       parsedFeed = await parseStringPromise(rssFeed);
       console.log("Parsed feed structure:", JSON.stringif(parsedFeed).slice(0, 200));
     } catch (parseError) {
