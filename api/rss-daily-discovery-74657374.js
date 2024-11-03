@@ -1,6 +1,8 @@
 const csvParser = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const admin = require('firebase-admin');
 
 // Helper function to escape XML special characters
 function escapeXml(unsafe) {
@@ -12,6 +14,14 @@ function escapeXml(unsafe) {
       '"': '&quot;',
       "'": '&apos;'
     }[c];
+  });
+}
+
+// Initialize Firebase (if needed for storage)
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.applicationDefault(),
+    databaseURL: "https://your-firebase-database-url.firebaseio.com" // Replace with your Firebase URL
   });
 }
 
@@ -39,6 +49,22 @@ module.exports = async (req, res) => {
       return;
     }
 
+    // Retrieve or generate a unique user code
+    let userCode = req.query.userCode;
+    if (!userCode) {
+      userCode = crypto.randomBytes(4).toString('hex'); // Generate a random 8-character code
+    }
+    
+    // Store or retrieve user code in Firebase if tracking users
+    if (req.query.userCode) {
+      const db = admin.database();
+      const userRef = db.ref(`users/${userCode}`);
+      const userData = await userRef.once('value');
+      if (!userData.exists()) {
+        await userRef.set({ createdAt: new Date().toISOString() });
+      }
+    }
+
     res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
 
@@ -62,8 +88,8 @@ module.exports = async (req, res) => {
           let rssFeed = `<?xml version="1.0" encoding="UTF-8"?>
           <rss version="2.0">
             <channel>
-              <title>Daily Discovery</title>
-              <description>Daily movie recommendations, streamlined for Radarr. No contracts. No costs. Ever.</description>`;
+              <title>Daily Discovery - User Code: ${userCode}</title>
+              <description>Daily movie recommendations personalized for User ${userCode}</description>`;
 
           // Use for...of loop to support async/await within the loop
           for (const movie of movies) {
