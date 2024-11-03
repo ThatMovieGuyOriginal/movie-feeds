@@ -57,20 +57,32 @@ module.exports = async (req, res) => {
     tempContext.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
 
     let currentY = MARGIN + HEADER_HEIGHT;
-    itemsWithPosters.forEach(item => {
-      // Render Title, Year, and Description on temporary canvas for height measurement
+    for (const item of itemsWithPosters) {
+      const posterY = currentY;
+
+      // Draw Poster Image if available
+      if (item.posterUrl) {
+        try {
+          const poster = await loadImage(item.posterUrl);
+          tempContext.drawImage(poster, 20, posterY, POSTER_WIDTH, POSTER_HEIGHT);
+        } catch (err) {
+          console.error(`Error loading poster for ${item.title}:`, err);
+        }
+      }
+
+      // Render Title, Year, and Description on temporary canvas
       const textX = MARGIN + POSTER_WIDTH + POSTER_MARGIN;
       tempContext.font = 'bold 18px Roboto';
       tempContext.fillStyle = '#000000';
-      tempContext.fillText(item.title, textX, currentY + 20);
+      tempContext.fillText(item.title, textX, posterY + 20);
       tempContext.font = '16px Roboto';
       tempContext.fillStyle = '#555555';
-      tempContext.fillText(`(${item.year})`, textX, currentY + 50);
+      tempContext.fillText(`(${item.year})`, textX, posterY + 50);
 
       const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
-      currentY = wrapText(tempContext, description, textX, currentY + 80, CANVAS_WIDTH - MARGIN - POSTER_WIDTH - POSTER_MARGIN, 20);
+      currentY = wrapText(tempContext, description, textX, posterY + 80, CANVAS_WIDTH - MARGIN - POSTER_WIDTH - POSTER_MARGIN, 20);
       currentY += VERTICAL_SPACING;
-    });
+    }
     currentY += BOTTOM_MARGIN;
 
     // Step 2: Create final canvas and render content
@@ -83,19 +95,32 @@ module.exports = async (req, res) => {
     context.fillText("Free Daily Discovery", MARGIN, MARGIN + 20);
     
     let contentY = MARGIN + HEADER_HEIGHT;
-    itemsWithPosters.forEach(item => {
-      // Render posters, titles, and descriptions on final canvas
+    for (const item of itemsWithPosters) {
+      const posterY = contentY;
+
+      // Draw Poster Image if available
+      if (item.posterUrl) {
+        try {
+          const poster = await loadImage(item.posterUrl);
+          context.drawImage(poster, 20, posterY, POSTER_WIDTH, POSTER_HEIGHT);
+        } catch (err) {
+          console.error(`Error loading poster for ${item.title}:`, err);
+        }
+      }
+
+      // Render Title, Year, and Description on final canvas
       const textX = MARGIN + POSTER_WIDTH + POSTER_MARGIN;
       context.font = 'bold 18px Roboto';
       context.fillStyle = '#000000';
-      context.fillText(item.title, textX, contentY + 20);
+      context.fillText(item.title, textX, posterY + 20);
       context.font = '16px Roboto';
       context.fillStyle = '#555555';
-      context.fillText(`(${item.year})`, textX, contentY + 50);
+      context.fillText(`(${item.year})`, textX, posterY + 50);
+
       const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
-      contentY = wrapText(context, description, textX, contentY + 80, CANVAS_WIDTH - MARGIN - POSTER_WIDTH - POSTER_MARGIN, 20);
+      contentY = wrapText(context, description, textX, posterY + 80, CANVAS_WIDTH - MARGIN - POSTER_WIDTH - POSTER_MARGIN, 20);
       contentY += VERTICAL_SPACING;
-    });
+    }
 
     res.setHeader('Content-Type', 'image/png');
     res.send(canvas.toBuffer('image/png'));
@@ -104,6 +129,7 @@ module.exports = async (req, res) => {
   }
 };
 
+// Helper function to wrap text
 function wrapText(context, text, x, y, maxWidth, lineHeight) {
   const words = text.split(' ');
   let line = '';
