@@ -3,14 +3,23 @@ const fetch = require('node-fetch');
 const { parseStringPromise } = require('xml2js');
 const path = require('path');
 
-// Register the custom font with error handling
+// Constants
+const CANVAS_WIDTH = 800;
+const MARGIN = 40;
+const HEADER_HEIGHT = 40;
+const POSTER_WIDTH = 100;
+const POSTER_HEIGHT = POSTER_WIDTH * 1.5;
+const POSTER_MARGIN = 20;
+const VERTICAL_SPACING = 45;
+const BOTTOM_MARGIN = 40;
+
+// Register font once
 try {
   registerFont(path.join(__dirname, '../fonts/Roboto-Regular.ttf'), { family: 'Roboto' });
 } catch (err) {
   console.error("Error registering font:", err);
 }
 
-// TMDB API details
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w200';
 
@@ -26,142 +35,83 @@ module.exports = async (req, res) => {
     const feedUrl = 'https://thatmovieguy.vercel.app/api/rss-daily-discovery-74657374';
     const response = await fetch(feedUrl, { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
     const rssFeed = await response.text();
+    const parsedFeed = await parseStringPromise(rssFeed);
+    const feedItems = parsedFeed?.rss?.channel[0]?.item?.slice(0, 5) || [];
 
-    let parsedFeed = await parseStringPromise(rssFeed);
+    const itemsWithPosters = await Promise.all(feedItems.map(async (item) => {
+      const tmdbId = item.link[0].split('/').pop();
+      const posterUrl = await fetchMoviePosterUrl(tmdbId);
+      return {
+        title: item.title[0].replace(/[^\x20-\x7E]/g, ''),
+        year: new Date(item.pubDate[0]).getFullYear().toString(),
+        description: item.description[0].replace(/[^\x20-\x7E]/g, ''),
+        pubDate: item.pubDate[0],
+        posterUrl,
+      };
+    }));
 
-    const feedItems = await Promise.all(
-      parsedFeed.rss?.channel[0]?.item?.slice(0, 5).map(async (item) => {
-        const tmdbId = item.link[0].split('/').pop();
-        const posterUrl = await fetchMoviePosterUrl(tmdbId);
-        return {
-          title: item.title[0].replace(/[^\x20-\x7E]/g, ''),
-          year: new Date(item.pubDate[0]).getFullYear().toString(),
-          description: item.description[0].replace(/[^\x20-\x7E]/g, ''),
-          pubDate: item.pubDate[0],
-          posterUrl,
-        };
-      })
-    );
-
-    // Step 1: Create a temporary canvas for measuring height
-    const tempCanvas = createCanvas(800, 1000); // Temporary large canvas
+    // Step 1: Create a temporary canvas for height calculation
+    const tempCanvas = createCanvas(CANVAS_WIDTH, 1000);
     const tempContext = tempCanvas.getContext('2d');
     tempContext.fillStyle = '#ffffff';
     tempContext.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-    tempContext.font = '16px Roboto';
 
-    const margin = 40;
-    const bottomMargin = 40;
-    const headerHeight = 40;
-    const posterWidth = 100;
-    const posterHeight = posterWidth * 1.5;
-    const posterMargin = 20;
-    const verticalSpacing = 45;
-    
-    // Render to the temporary canvas to get the required height
-    let y = margin + headerHeight; // Initial y position after header
-    for (const item of feedItems) {
-      const posterY = y;
-
-      if (item.posterUrl) {
-        try {
-          const poster = await loadImage(item.posterUrl);
-          tempContext.drawImage(poster, 20, posterY, posterWidth, posterHeight);
-        } catch (err) {
-          console.error(`Error loading poster for ${item.title}:`, err);
-        }
-      }
-
-      const textX = 20 + posterWidth + posterMargin;
+    let currentY = MARGIN + HEADER_HEIGHT;
+    itemsWithPosters.forEach(item => {
+      // Render Title, Year, and Description on temporary canvas for height measurement
+      const textX = MARGIN + POSTER_WIDTH + POSTER_MARGIN;
       tempContext.font = 'bold 18px Roboto';
       tempContext.fillStyle = '#000000';
-      tempContext.fillText(`${item.title}`, textX, posterY + 20);
+      tempContext.fillText(item.title, textX, currentY + 20);
       tempContext.font = '16px Roboto';
       tempContext.fillStyle = '#555555';
-      tempContext.fillText(`(${item.year})`, textX, posterY + 50);
+      tempContext.fillText(`(${item.year})`, textX, currentY + 50);
 
       const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
-      tempContext.fillStyle = '#333333';
-      y = wrapText(tempContext, description, textX, posterY + 80, 760 - posterWidth - posterMargin, 20);
+      currentY = wrapText(tempContext, description, textX, currentY + 80, CANVAS_WIDTH - MARGIN - POSTER_WIDTH - POSTER_MARGIN, 20);
+      currentY += VERTICAL_SPACING;
+    });
+    currentY += BOTTOM_MARGIN;
 
-      y += verticalSpacing;
-    }
-
-    y += bottomMargin;
-
-    // Step 2: Create the final canvas with calculated height
-    const canvas = createCanvas(800, y);
+    // Step 2: Create final canvas and render content
+    const canvas = createCanvas(CANVAS_WIDTH, currentY);
     const context = canvas.getContext('2d');
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Step 3: Render content again to the final canvas
     context.font = 'bold 20px Roboto';
-    let yFinal = margin + 20;
-    context.fillStyle = '#000000'; // Set text color to black
-    context.fillText("Free Daily Discovery", 20, yFinal);
-    yFinal += headerHeight;
-
-    for (const item of feedItems) {
-      const posterY = yFinal;
-
-      if (item.posterUrl) {
-        try {
-          const poster = await loadImage(item.posterUrl);
-          context.drawImage(poster, 20, posterY, posterWidth, posterHeight);
-        } catch (err) {
-          console.error(`Error loading poster for ${item.title}:`, err);
-        }
-      }
-
-      const textX = 20 + posterWidth + posterMargin;
+    context.fillStyle = '#000000';
+    context.fillText("Free Daily Discovery", MARGIN, MARGIN + 20);
+    
+    let contentY = MARGIN + HEADER_HEIGHT;
+    itemsWithPosters.forEach(item => {
+      // Render posters, titles, and descriptions on final canvas
+      const textX = MARGIN + POSTER_WIDTH + POSTER_MARGIN;
       context.font = 'bold 18px Roboto';
       context.fillStyle = '#000000';
-      context.fillText(`${item.title}`, textX, posterY + 20);
+      context.fillText(item.title, textX, contentY + 20);
       context.font = '16px Roboto';
       context.fillStyle = '#555555';
-      context.fillText(`(${item.year})`, textX, posterY + 50);
-
+      context.fillText(`(${item.year})`, textX, contentY + 50);
       const description = item.description.length > 150 ? item.description.slice(0, 150) + '...' : item.description;
-      context.fillStyle = '#333333';
-      yFinal = wrapText(context, description, textX, posterY + 80, 760 - posterWidth - posterMargin, 20);
+      contentY = wrapText(context, description, textX, contentY + 80, CANVAS_WIDTH - MARGIN - POSTER_WIDTH - POSTER_MARGIN, 20);
+      contentY += VERTICAL_SPACING;
+    });
 
-      yFinal += verticalSpacing;
-    }
-
-    const imageBuffer = canvas.toBuffer('image/png');
     res.setHeader('Content-Type', 'image/png');
-    res.send(imageBuffer);
-
+    res.send(canvas.toBuffer('image/png'));
   } catch (error) {
     console.error("Error generating image:", error);
-    const canvas = createCanvas(800, 600);
-    const context = canvas.getContext('2d');
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = '#ff0000';
-    context.font = '24px Arial';
-    context.fillText('Error generating image:', 20, 20);
-    context.fillText(error.toString(), 20, 60);
-    const imageBuffer = canvas.toBuffer('image/png');
-    res.setHeader('Content-Type', 'image/png');
-    res.send(imageBuffer);
   }
 };
 
-// Helper function to wrap text
 function wrapText(context, text, x, y, maxWidth, lineHeight) {
   const words = text.split(' ');
   let line = '';
-
-  for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + ' ';
-    const metrics = context.measureText(testLine);
-    const testWidth = metrics.width;
-
-    if (testWidth > maxWidth && n > 0) {
+  for (const word of words) {
+    const testLine = line + word + ' ';
+    if (context.measureText(testLine).width > maxWidth && line) {
       context.fillText(line, x, y);
-      line = words[n] + ' ';
+      line = word + ' ';
       y += lineHeight;
     } else {
       line = testLine;
