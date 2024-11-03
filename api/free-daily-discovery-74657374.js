@@ -59,6 +59,7 @@ module.exports = async (req, res) => {
 
     // Set up dynamic height calculation
     const margin = 40;
+    const bottomMargin = 40;  // Bottom margin to match top and side margins
     const lineHeight = 25;
     const titleHeight = 30;
     const posterWidth = 100;
@@ -98,6 +99,8 @@ module.exports = async (req, res) => {
       estimatedHeight += linesNeeded * lineHeight; // Height for wrapped description lines
       estimatedHeight += 20; // Space after each item
     });
+
+    estimatedHeight += bottomMargin; // Add bottom margin at the end
 
     // Generate the image with precise dynamic height
     const canvas = createCanvas(800, estimatedHeight);
