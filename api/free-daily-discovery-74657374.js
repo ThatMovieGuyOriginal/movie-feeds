@@ -64,7 +64,7 @@ module.exports = async (req, res) => {
     const posterWidth = 100;
     const posterHeight = posterWidth * 1.5; // Keep aspect ratio
     const posterMargin = 20;
-    const verticalSpacing = 50;  // New spacing value between each poster
+    const verticalSpacing = 45;  // New spacing value between each poster
     let estimatedHeight = margin;
 
     // Create a temporary canvas context to measure text height
