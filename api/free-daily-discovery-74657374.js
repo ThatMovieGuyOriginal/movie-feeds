@@ -28,13 +28,13 @@ module.exports = async (req, res) => {
     const response = await fetch(feedUrl, { headers: { 'Content-Type': 'application/xml; charset=utf-8' } });
     const rssFeed = await response.text();
 
-    console.log("RSS feed fetched:", rssFeed.slice(0, 200));
+    ("RSS feed fetched:", rssFeed.slice(0, 200));
 
     // Parse RSS feed
     let parsedFeed;
     try {
       parsedFeed = await parseStringPromise(rssFeed);
-      console.log("Parsed feed structure:", JSON.stringif(parsedFeed).slice(0, 200));
+      console.log("Parsed feed structure:", JSON.stringify(parsedFeed).slice(0, 200));
     } catch (parseError) {
       console.error("Error parsing feed:", parseError);
       throw parseError;
