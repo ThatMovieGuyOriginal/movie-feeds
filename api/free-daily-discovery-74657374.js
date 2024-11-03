@@ -97,7 +97,8 @@ module.exports = async (req, res) => {
 
     // Step 3: Render content again to the final canvas
     context.font = 'bold 20px Roboto';
-    let yFinal = margin;
+    let yFinal = margin + 20;
+    context.fillStyle = '#000000'; // Set text color to black
     context.fillText("Free Daily Discovery", 20, yFinal);
     yFinal += headerHeight;
 
