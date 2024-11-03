@@ -52,13 +52,14 @@ module.exports = async (req, res) => {
 
     const margin = 40;
     const bottomMargin = 40;
+    const headerHeight = 40;
     const posterWidth = 100;
     const posterHeight = posterWidth * 1.5;
     const posterMargin = 20;
     const verticalSpacing = 45;
-
+    
     // Render to the temporary canvas to get the required height
-    let y = margin + 40; // Initial y position after header
+    let y = margin + headerHeight; // Initial y position after header
     for (const item of feedItems) {
       const posterY = y;
 
@@ -98,7 +99,7 @@ module.exports = async (req, res) => {
     context.font = 'bold 20px Roboto';
     let yFinal = margin;
     context.fillText("Free Daily Discovery", 20, yFinal);
-    yFinal += 40;
+    yFinal += headerHeight;
 
     for (const item of feedItems) {
       const posterY = yFinal;
