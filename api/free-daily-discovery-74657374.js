@@ -32,9 +32,9 @@ module.exports = async (req, res) => {
 
     // Parse RSS feed
     let parsedFeed;
-    try {
+    tr {
       parsedFeed = await parseStringPromise(rssFeed);
-      console.log("Parsed feed structure:", JSON.stringify(parsedFeed).slice(0, 200));
+      console.log("Parsed feed structure:", JSON.stringif(parsedFeed).slice(0, 200));
     } catch (parseError) {
       console.error("Error parsing feed:", parseError);
       throw parseError;
@@ -100,8 +100,6 @@ module.exports = async (req, res) => {
       estimatedHeight += 20; // Space after each item
     });
 
-    estimatedHeight += bottomMargin; // Add bottom margin at the end
-
     // Generate the image with precise dynamic height
     const canvas = createCanvas(800, estimatedHeight);
     const context = canvas.getContext('2d');
@@ -148,6 +146,8 @@ module.exports = async (req, res) => {
       y += verticalSpacing; // Add space before the next item starts
     }
 
+    y += bottomMargin; // Add bottom margin after the last item
+    
     // Helper function to wrap text
     function wrapText(context, text, x, y, maxWidth, lineHeight) {
       const words = text.split(' ');
