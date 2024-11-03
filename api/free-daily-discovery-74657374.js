@@ -64,6 +64,7 @@ module.exports = async (req, res) => {
     const posterWidth = 100;
     const posterHeight = posterWidth * 1.5; // Keep aspect ratio
     const posterMargin = 20;
+    const verticalSpacing = 30;  // New spacing value between each poster
     let estimatedHeight = margin;
 
     // Create a temporary canvas context to measure text height
@@ -141,7 +142,7 @@ module.exports = async (req, res) => {
       context.fillStyle = '#333333';
       y = wrapText(context, `${description}`, textX, posterY + 80, 760 - posterWidth - posterMargin, 20); // Description starts below year
 
-      y += 20; // Add space before the next item starts
+      y += verticalSpacing; // Add space before the next item starts
     }
 
     // Helper function to wrap text
