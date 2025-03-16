@@ -5,14 +5,5 @@
       "maxDuration": 10
     }
   },
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/node",
-      "config": {
-        "nodeVersion": "18.x",
-        "installCommand": "npm install"
-      }
-    }
-  ]
+  "buildCommand": "npm install"
 }
