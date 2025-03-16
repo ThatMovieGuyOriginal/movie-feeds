@@ -2,21 +2,30 @@ name: Update Daily Discovery List
 
 on:
   schedule:
-    - cron: '0 */12 * * *' # Runs every 12 hours
+    - cron: '0 0 * * *' # Runs at midnight UTC every day
   workflow_dispatch: # Enables manual runs
   
 jobs:
   update-daily-discovery:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false  # Disable default token to use PAT explicitly
+          fetch-depth: 0  # Fetch all history for potential analysis
 
       - name: Install dependencies
-        run: sudo apt-get install -y csvkit
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y csvkit jq
+          pip install pandas numpy tmdbsimple requests
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
       - name: Prepare Used Movies List
         run: |
@@ -25,96 +34,235 @@ jobs:
             echo "title,year,imdb_id,tmdb_id,released,url" > movies/previously_used_movies.csv
           fi
 
-      - name: Select Random Movies Excluding Previously Used Movies
+      - name: Generate Daily Discovery List with Smart Selection
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
-          # Clear daily_discovery.csv and add headers
-          echo "title,year,imdb_id,tmdb_id,released,url" > movies/daily_discovery.csv
+          cat > select_movies.py << 'EOL'
+          import pandas as pd
+          import numpy as np
+          import requests
+          import json
+          import os
+          import glob
+          import random
+          from datetime import datetime
 
-          # Concatenate all master movie lists, select only required columns, skip headers, and filter out previously used movies
-          selected_movies=$(awk 'FNR > 1 {print $0}' movies/master_movie_list_*.csv 2>/dev/null | \
-            tail -n +2 | \
-            csvcut -c 3,4,7,8,11,10 2>/dev/null | \
-            csvgrep -i -c 3 -f movies/previously_used_movies.csv 2>/dev/null | \
-            shuf -n 5)
+          # Configuration
+          TMDB_API_KEY = os.environ.get('TMDB_API_KEY')
+          NUM_MOVIES = 5  # Number of movies to select
+          CURRENT_DATE = datetime.now().strftime('%Y-%m-%d')
 
-          # Log the raw selected_movies output with file information for debugging
-          echo "Raw selected movies output with source file:"
-          echo "$selected_movies"
+          # Helper function to fetch movie details from TMDB
+          def fetch_movie_details(tmdb_id):
+              url = f"https://api.themoviedb.org/3/movie/{tmdb_id}?api_key={TMDB_API_KEY}&language=en-US&append_to_response=release_dates,credits,keywords"
+              try:
+                  response = requests.get(url)
+                  data = response.json()
+                  
+                  # Get US certification if available
+                  certification = "Unknown"
+                  if 'release_dates' in data and 'results' in data['release_dates']:
+                      for country in data['release_dates']['results']:
+                          if country['iso_3166_1'] == 'US':
+                              for release in country['release_dates']:
+                                  if release['certification']:
+                                      certification = release['certification']
+                                      break
+                              break
+                  
+                  # Get primary genres
+                  genres = [genre['name'] for genre in data.get('genres', [])]
+                  
+                  # Get director
+                  director = "Unknown"
+                  if 'credits' in data and 'crew' in data['credits']:
+                      for crew_member in data['credits']['crew']:
+                          if crew_member['job'] == 'Director':
+                              director = crew_member['name']
+                              break
+                  
+                  return {
+                      'title': data.get('title', 'Unknown'),
+                      'overview': data.get('overview', ''),
+                      'rating': data.get('vote_average', 0),
+                      'popularity': data.get('popularity', 0),
+                      'release_date': data.get('release_date', ''),
+                      'runtime': data.get('runtime', 0),
+                      'genres': genres,
+                      'certification': certification,
+                      'director': director,
+                      'vote_count': data.get('vote_count', 0)
+                  }
+              except Exception as e:
+                  print(f"Error fetching details for TMDB ID {tmdb_id}: {e}")
+                  return None
 
-          # Check if exactly five movies were selected
-          if [ -z "$selected_movies" ] || [ $(echo "$selected_movies" | wc -l) -ne 5 ]; then
-            echo "Error: Less than five unique movies available for selection or no valid movies were found. Skipping this run."
-            exit 1
-          else
-            echo "Selected movies for daily discovery:"
-            # Format each selected movie with quotes around each field before appending
-            while IFS= read -r line; do
-              echo "Processing line: $line"  # Log the line being processed
+          # Load master movie lists
+          master_files = glob.glob('movies/master_movie_list_*.csv')
+          if not master_files:
+              print("Error: No master movie list files found.")
+              exit(1)
 
-              filename=$(echo "$line" | cut -d',' -f1)
-              movie_data=$(echo "$line" | cut -d',' -f2-)
+          all_movies = pd.DataFrame()
+          for file in master_files:
+              try:
+                  df = pd.read_csv(file)
+                  # Ensure required columns exist
+                  if 'title' in df.columns and 'tmdb_id' in df.columns:
+                      all_movies = pd.concat([all_movies, df])
+              except Exception as e:
+                  print(f"Error reading {file}: {e}")
 
-              title=$(echo "$line" | cut -d',' -f1)
-              year=$(echo "$line" | cut -d',' -f2)
-              imdb_id=$(echo "$line" | cut -d',' -f3)
-              tmdb_id=$(echo "$line" | cut -d',' -f4)
-              released=$(echo "$line" | cut -d',' -f5)
-              url=$(echo "$line" | cut -d',' -f6)
+          # Read previously used movies to exclude them
+          previously_used = pd.read_csv('movies/previously_used_movies.csv')
+          previously_used_ids = set(previously_used['tmdb_id'].astype(str).tolist())
 
-              # Use default value "" for any missing fields to maintain CSV structure
-              title="${title:-""}"
-              year="${year:-""}"
-              imdb_id="${imdb_id:-""}"
-              tmdb_id="${tmdb_id:-""}"
-              released="${released:-""}"
-              url="${url:-""}"
+          # Filter out previously used movies
+          filtered_movies = all_movies[~all_movies['tmdb_id'].astype(str).isin(previously_used_ids)]
 
-              # Log each parsed field to catch any parsing issues
-              echo "  Source File: $filename"
-              echo "  Title: $title"
-              echo "  Year: $year"
-              echo "  IMDB ID: $imdb_id"
-              echo "  TMDB ID: $tmdb_id"
-              echo "  Released: $released"
-              echo "  URL: $url"
+          # If we have less than NUM_MOVIES unique movies after filtering, reset the previously used list
+          if len(filtered_movies) < NUM_MOVIES:
+              print("Warning: Running out of unique movies. Resetting previously used movies list.")
+              previously_used = pd.DataFrame(columns=previously_used.columns)
+              filtered_movies = all_movies
+
+          # Initialize the selection with empty DataFrame
+          selected_movies = pd.DataFrame()
+
+          # Try to include diverse selection with different genres/decades
+          genres_to_include = ['Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi']
+          decades = [(1920, 1969), (1970, 1989), (1990, 2009), (2010, 2029)]
+
+          # Fetch additional information for potential selections
+          potential_selections = filtered_movies.sample(min(50, len(filtered_movies)))
+          enriched_selections = []
+
+          for _, movie in potential_selections.iterrows():
+              tmdb_id = str(movie['tmdb_id'])
+              details = fetch_movie_details(tmdb_id)
               
-              formatted_line="\"$title\",\"$year\",\"$imdb_id\",\"$tmdb_id\",\"$released\",\"$url\""
-              echo "$formatted_line" >> movies/daily_discovery.csv
-              echo "  - $title"  # Log each movie title being added to daily_discovery.csv
-            done <<< "$selected_movies"
+              if details:
+                  enriched_selections.append({
+                      'title': movie['title'],
+                      'year': str(movie['year']) if 'year' in movie else '',
+                      'imdb_id': movie['imdb_id'] if 'imdb_id' in movie else '',
+                      'tmdb_id': tmdb_id,
+                      'released': movie['released'] if 'released' in movie else details['release_date'],
+                      'url': f"https://www.themoviedb.org/movie/{tmdb_id}",
+                      'genres': details['genres'],
+                      'rating': details['rating'],
+                      'popularity': details['popularity'],
+                      'certification': details['certification'],
+                      'director': details['director'],
+                      'vote_count': details['vote_count']
+                  })
+
+          # Create DataFrame from enriched selections
+          if enriched_selections:
+              enriched_df = pd.DataFrame(enriched_selections)
+              
+              # Score movies based on diversity criteria
+              enriched_df['score'] = 0
+              
+              # Higher score for movies with good ratings but enough votes to be reliable
+              enriched_df.loc[(enriched_df['rating'] >= 7.0) & (enriched_df['vote_count'] >= 100), 'score'] += 3
+              
+              # Higher score for movies with diverse genres
+              for genre in genres_to_include:
+                  enriched_df['score'] += enriched_df['genres'].apply(lambda x: 2 if genre in x else 0)
+              
+              # Higher score for movies from different decades
+              for start, end in decades:
+                  try:
+                      enriched_df['decade_score'] = enriched_df['year'].apply(
+                          lambda x: 2 if start <= int(x) <= end else 0 if pd.isna(x) else 0
+                      )
+                      enriched_df['score'] += enriched_df['decade_score']
+                  except Exception as e:
+                      print(f"Error processing decades: {e}")
+              
+              # Select the top-scored movies
+              enriched_df = enriched_df.sort_values('score', ascending=False)
+              final_selection = enriched_df.head(NUM_MOVIES)
+              
+              # Create the daily discovery CSV
+              output_columns = ['title', 'year', 'imdb_id', 'tmdb_id', 'released', 'url']
+              final_selection[output_columns].to_csv('movies/daily_discovery.csv', index=False)
+              
+              # Add these movies to the previously used list
+              final_selection[output_columns].to_csv('movies/previously_used_movies.csv', mode='a', header=False, index=False)
+              
+              print(f"Successfully selected {len(final_selection)} movies for daily discovery:")
+              for _, movie in final_selection.iterrows():
+                  genres_str = ', '.join(movie['genres']) if isinstance(movie['genres'], list) else 'Unknown'
+                  print(f"- {movie['title']} ({movie['year']}) - Genres: {genres_str}, Rating: {movie['rating']}")
+          else:
+              print("Error: No movies with additional details found. Falling back to random selection.")
+              selected_movies = filtered_movies.sample(min(NUM_MOVIES, len(filtered_movies)))
+              selected_movies.to_csv('movies/daily_discovery.csv', index=False)
+              selected_movies.to_csv('movies/previously_used_movies.csv', mode='a', header=False, index=False)
+          EOL
+
+          # Execute the Python script
+          python select_movies.py
+
+      - name: Format and Clean CSV Files
+        run: |
+          # Format daily_discovery.csv
+          if [ -f movies/daily_discovery.csv ]; then
+            # Create a temp file with header
+            echo "title,year,imdb_id,tmdb_id,released,url" > movies/temp.csv
+            
+            # Format the data with proper quoting
+            tail -n +2 movies/daily_discovery.csv | while IFS=, read -r title year imdb_id tmdb_id released url; do
+              echo "\"$title\",\"$year\",\"$imdb_id\",\"$tmdb_id\",\"$released\",\"$url\"" >> movies/temp.csv
+            done
+            
+            # Replace the original file
+            mv movies/temp.csv movies/daily_discovery.csv
+          fi
+          
+          # Format previously_used_movies.csv to deduplicate entries
+          if [ -f movies/previously_used_movies.csv ]; then
+            # Deduplicate entries based on tmdb_id
+            cat movies/previously_used_movies.csv | csvcut -c title,year,imdb_id,tmdb_id,released,url | csvgrep -c tmdb_id -r "^.+$" | csvformat -U 1 > movies/temp.csv
+            
+            # Get unique entries preserving order
+            cat movies/temp.csv | awk -F, '!seen[$4]++' > movies/previously_used_movies.csv
+            
+            rm movies/temp.csv
           fi
 
-      - name: Append Unique Movies to Previously Used Movies List
+      - name: Generate Movie Stats
         run: |
-          # Append only unique entries from daily_discovery.csv to previously_used_movies.csv
-          echo "Appending movies to previously_used_movies.csv:"
-          while IFS=, read -r title year imdb_id tmdb_id released url; do
-            # Use default values for missing fields to maintain consistent structure
-            title="${title:-""}"
-            year="${year:-""}"
-            imdb_id="${imdb_id:-""}"
-            tmdb_id="${tmdb_id:-""}"
-            released="${released:-""}"
-            url="${url:-""}"
+          echo "# Movie Selection Stats" > movies/stats.md
+          echo "Last updated: $(date)" >> movies/stats.md
+          echo "" >> movies/stats.md
+          echo "## Current Selection" >> movies/stats.md
+          echo "" >> movies/stats.md
+          
+          # Add table header
+          echo "| Title | Year | IMDB | TMDB | Released |" >> movies/stats.md
+          echo "|-------|------|------|------|----------|" >> movies/stats.md
+          
+          # Add each movie as a row
+          tail -n +2 movies/daily_discovery.csv | while IFS=, read -r title year imdb_id tmdb_id released url; do
+            # Clean up quotes
+            title=$(echo $title | sed 's/"//g')
+            year=$(echo $year | sed 's/"//g')
+            imdb_id=$(echo $imdb_id | sed 's/"//g')
+            tmdb_id=$(echo $tmdb_id | sed 's/"//g')
+            released=$(echo $released | sed 's/"//g')
             
-            # Check if the tmdb_id already exists in previously_used_movies.csv to prevent duplicates
-            if ! grep -q "$tmdb_id" movies/previously_used_movies.csv; then
-              # Append the line without additional quotes
-              echo "$title,$year,$imdb_id,$tmdb_id,$released,$url" >> movies/previously_used_movies.csv
-              echo "  - $title"  # Log each movie title being appended to previously_used_movies.csv
-            fi
-          done < <(tail -n +2 movies/daily_discovery.csv)
-
-      - name: Format Previously Used Movies List
-        run: |
-          # Add header manually to a new temporary file without extra quotes
-          echo "title,year,imdb_id,tmdb_id,released,url" > movies/previously_used_movies_temp.csv
-
-          # Format the data rows and append them to the new file without additional quotes
-          tail -n +2 movies/previously_used_movies.csv | csvformat -U 1 >> movies/previously_used_movies_temp.csv
-
-          # Replace the original file with the formatted one
-          mv movies/previously_used_movies_temp.csv movies/previously_used_movies.csv
+            echo "| $title | $year | [$imdb_id](https://www.imdb.com/title/$imdb_id/) | [$tmdb_id](https://www.themoviedb.org/movie/$tmdb_id) | $released |" >> movies/stats.md
+          done
+          
+          echo "" >> movies/stats.md
+          echo "## Statistics" >> movies/stats.md
+          echo "" >> movies/stats.md
+          echo "- Total movies in rotation: $(cat movies/master_movie_list_*.csv 2>/dev/null | wc -l)" >> movies/stats.md
+          echo "- Previously used movies: $(tail -n +2 movies/previously_used_movies.csv | wc -l)" >> movies/stats.md
 
       - name: Commit and push changes
         env:
@@ -123,11 +271,11 @@ jobs:
           git config --local user.email "ThatMovieGuyOriginal@users.noreply.github.com"
           git config --local user.name "GitHub Actions"
           git remote set-url origin https://$DAILY_DISCOVERY_PAT@github.com/ThatMovieGuyOriginal/movie-feeds.git
-          git add movies/daily_discovery.csv movies/previously_used_movies.csv
-          git commit -m "Update free movies for RSS feed and log used movie"
+          git add movies/daily_discovery.csv movies/previously_used_movies.csv movies/stats.md
+          git commit -m "Update daily discovery movies for $(date +%Y-%m-%d)"
           git push origin main
 
-      # New step to trigger Vercel redeployment after CSV updates
+      # Trigger Vercel redeployment after CSV updates
       - name: Trigger Vercel Redeploy for RSS Feed Update
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -137,7 +285,7 @@ jobs:
           -H "Content-Type: application/json" \
           -d '{ "force": true }'
 
-      # New step to trigger Vercel webhook for image generation if RSS feed changes
+      # Trigger Vercel webhook for image generation
       - name: Trigger Vercel Image Generation Webhook
         env:
           VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
