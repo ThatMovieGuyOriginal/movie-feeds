@@ -1,9 +1,12 @@
 {
   "functions": {
-    "api/free-daily-discovery.js": {
+    "api/free-daily-discovery-text.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    },
+    "api/rss-daily-discovery.js": {
       "memory": 1024,
       "maxDuration": 10
     }
-  },
-  "buildCommand": "npm install"
+  }
 }
